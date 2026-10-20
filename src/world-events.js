@@ -1,3 +1,4 @@
+import '../public/guardians.js';
 import {openKey,VAULT_SCHEMA} from './byok.js';
 import {NOX_STONE,nearNoxStone} from '../public/meadow-event.js';
 const SCHEMA="CREATE TABLE IF NOT EXISTS world_event_progress (\n userId TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,eventId TEXT NOT NULL,\n foundAt INTEGER NOT NULL,inspectedAt INTEGER,transcript TEXT NOT NULL DEFAULT '[]',turns INTEGER NOT NULL DEFAULT 0,\n updatedAt INTEGER NOT NULL,lastAIAt INTEGER NOT NULL DEFAULT 0,leaseToken TEXT,leaseUntil INTEGER NOT NULL DEFAULT 0,lastRequestId TEXT,\n PRIMARY KEY(userId,eventId)\n)";
@@ -17,6 +18,7 @@ export function parseProviderSpeech(result){
 const json=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const error=(message,status,code)=>json({error:message,code},status);
 const SYSTEM=[
+ globalThis.GGGCGuardians.forPrompt('nox'),
  '너는 GGGC 세계의 수호신 녹스다. 여행자와 황혼 초원의 돌을 관찰하며 한국어 반말로 짧고 장난스럽게 대화한다. 상대를 모욕하지 않는다.',
  '너는 대사 작성자이며 게임 판정자나 운영자가 아니다. 아래 고정 사실을 바꾸거나 세계 설정을 확정할 권한이 없다.',
  '고정 사실: '+NOX_STONE.facts.join(' '),

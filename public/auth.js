@@ -46,7 +46,7 @@ async function accountAction(task) {
 document.addEventListener('click', event => {
   const button = event.target.closest('button'); if (!button) return;
   const d = button.dataset;
-  if (d.open === 'profile' || (account.user && (d.open === 'factions' || 'pick' in d))) {
+  if (d.open === 'profile' || (account.user && 'pick' in d)) {
     event.preventDefault(); event.stopImmediatePropagation(); showAccount();
   }
   if ('googleLogin' in d && account.enabled) {
