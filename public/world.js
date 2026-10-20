@@ -5,10 +5,10 @@
   if (!root) return;
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const factions = [
-    {id:'astra',name:'아스트라',ai:'GPT',place:'지혜의 숲',line:'잠깐 쉬어 가요. 새로운 이야기는 여기서 시작해요.',x:25,y:35,color:'#688c66'},
-    {id:'serin',name:'세린',ai:'CLAUDE',place:'햇살 성채',line:'생각이 달라도 괜찮아요. 함께 답을 찾아볼까요?',x:73,y:34,color:'#b78656'},
-    {id:'lumi',name:'루미',ai:'GEMINI',place:'별빛 호수',line:'호수에 별이 떨어졌어! 같이 보러 갈래?',x:27,y:73,color:'#638eae'},
-    {id:'nox',name:'녹스',ai:'GROK',place:'황혼 언덕',line:'뻔한 길 말고, 저쪽으로 가보는 건 어때?',x:74,y:73,color:'#8c72a2'}
+    {id:'astra',name:'아스트라',god:'지혜와 창조의 신',ai:'GPT',place:'지혜의 숲',line:'잠깐 쉬어 가요. 새로운 이야기는 여기서 시작해요.',x:25,y:35,color:'#168653'},
+    {id:'serin',name:'세린',god:'조화와 기록의 신',ai:'CLAUDE',place:'햇살 성채',line:'생각이 달라도 괜찮아요. 함께 답을 찾아볼까요?',x:73,y:34,color:'#ce4545'},
+    {id:'lumi',name:'루미',god:'별과 탐구의 신',ai:'GEMINI',place:'별빛 호수',line:'호수에 별이 떨어졌어! 같이 보러 갈래?',x:27,y:73,color:'#2875d7'},
+    {id:'nox',name:'녹스',god:'자유와 변혁의 신',ai:'GROK',place:'황혼 언덕',line:'뻔한 길 말고, 저쪽으로 가보는 건 어때?',x:74,y:73,color:'#9251cc'}
   ];
   const canvas = root.querySelector('canvas');
   const c = canvas.getContext('2d');
@@ -65,11 +65,11 @@
     if(night)rect(0,0,480,300,'#18324835');
   }
   const travelers=root.querySelector('.world-travelers');
-  travelers.innerHTML=factions.map(f=>`<button class="world-character" data-world-faction="${f.id}" style="--x:${f.x}%;--y:${f.y}%;--faction:${f.color}" aria-label="${f.ai} 진영 ${f.name}, ${f.place}" aria-pressed="${f.id==='astra'}"><span class="character-art"><faction-sprite faction="${f.id}"></faction-sprite></span><span class="character-name">${f.name}</span></button>`).join('');
+  travelers.innerHTML=factions.map(f=>`<button class="world-character" data-world-faction="${f.id}" style="--x:${f.x}%;--y:${f.y}%;--faction:${f.color}" aria-label="${f.ai} 진영 ${f.name}, ${f.god}, ${f.place}" aria-pressed="${f.id==='astra'}"><span class="character-art"><faction-sprite faction="${f.id}"></faction-sprite></span><span class="character-name">${f.name}</span></button>`).join('');
   function select(id) {
     selected=factions.find(f=>f.id===id)||factions[0];
     root.querySelectorAll('[data-world-faction]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.worldFaction===selected.id)));
-    root.querySelector('.world-speaker').textContent=`${selected.name} · ${selected.ai}`;
+    root.querySelector('.world-speaker').textContent=`${selected.name} · ${selected.god}`;
     root.querySelector('.world-quote').textContent=selected.line;
     root.querySelector('.world-place').textContent=selected.place;
     root.querySelector('[data-world-visit]').textContent=`${selected.ai} 진영 둘러보기 →`;
