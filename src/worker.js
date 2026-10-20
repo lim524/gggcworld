@@ -1,4 +1,5 @@
 import { configured, createAuth } from './auth.js';
+import { community } from './community.js';
 
 const FACTIONS = new Set(['astra', 'serin', 'lumi', 'nox']);
 const json = (data, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
@@ -20,6 +21,7 @@ export function createWorker(authFactory = createAuth) {
       if (!['GET', 'HEAD'].includes(request.method) && (request.headers.get('Origin') !== url.origin || !request.headers.get('Content-Type')?.startsWith('application/json'))) return json({ error: '잘못된 요청이에요.' }, 403);
       try {
         const auth = authFactory(env);
+        if (url.pathname === '/api/posts' || url.pathname.startsWith('/api/posts/')) return community(request, env, auth);
         // Expose only the login flow; member profile writes belong to /api/me.
         if (url.pathname.startsWith('/api/auth/')) {
           if (url.pathname === '/api/auth/error' && request.method === 'GET') return new Response(null, { status: 302, headers: { Location: url.origin + '/?login=error', 'Cache-Control': 'no-store' } });

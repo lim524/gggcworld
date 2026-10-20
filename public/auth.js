@@ -21,11 +21,12 @@ function syncAccount(user) {
   document.querySelector('.full-button').textContent = user?.profile ? '나의 진영 확인하기 →' : '나의 진영 선택하기 →';
   document.querySelector('.full-button').nextElementSibling.textContent = user ? '프로필과 확정한 진영은 계정에 저장됩니다.' : '게스트의 진영 선택은 이 기기에만 저장됩니다.';
   window.dispatchEvent(new Event('gggc:factionchange'));
+  window.dispatchEvent(new Event('gggc:accountchange'));
 }
 function showAccount() {
   if (account.loading) { toast('로그인 상태를 확인하고 있어요.'); return; }
   if (!account.user) {
-    open(`<div class="modal-body account-panel"><span class="micro">WELCOME TO GGGC</span><h2 id="modal-title">나의 신과 함께, 광장으로</h2><p class="subtitle">Google 계정으로 시작하고 닉네임과 진영을 선택하세요.</p><button class="google-login secondary" data-google-login ${account.enabled ? '' : 'disabled'}>Google로 계속하기</button><p class="subtitle">${account.enabled ? '처음 로그인하면 계정이 만들어집니다. Google 이름 대신 별도의 닉네임을 사용해요.' : '로그인 연결을 준비하고 있어요. 연결이 완료되면 여기서 시작할 수 있어요.'}</p><p class="subtitle">게시글과 댓글은 아직 이 브라우저에만 저장되는 체험 기능입니다.</p><p id="account-error" role="alert"></p></div>`);
+    open(`<div class="modal-body account-panel"><span class="micro">WELCOME TO GGGC</span><h2 id="modal-title">나의 신과 함께, 광장으로</h2><p class="subtitle">Google 계정으로 시작하고 닉네임과 진영을 선택하세요.</p><button class="google-login secondary" data-google-login ${account.enabled ? '' : 'disabled'}>Google로 계속하기</button><p class="subtitle">${account.enabled ? '처음 로그인하면 계정이 만들어집니다. Google 이름 대신 별도의 닉네임을 사용해요.' : '로그인 연결을 준비하고 있어요. 연결이 완료되면 여기서 시작할 수 있어요.'}</p><p class="subtitle">로그인하고 진영을 확정하면 광장에 글과 댓글을 남길 수 있어요.</p><p id="account-error" role="alert"></p></div>`);
     return;
   }
   const member = account.user.profile;
@@ -50,7 +51,9 @@ document.addEventListener('click', event => {
   if ('googleLogin' in d && account.enabled) {
     event.preventDefault(); event.stopImmediatePropagation();
     accountAction(async () => {
-      const data = await accountRequest('/api/auth/sign-in/social', 'POST', { provider: 'google', callbackURL: location.origin + '/?login=success', errorCallbackURL: location.origin + '/?login=error' });
+      const success = new URL(location.href), failure = new URL(location.href);
+      success.searchParams.set('login', 'success'); failure.searchParams.set('login', 'error');
+      const data = await accountRequest('/api/auth/sign-in/social', 'POST', { provider: 'google', callbackURL: success.href, errorCallbackURL: failure.href });
       const destination = new URL(data.url);
       if (destination.protocol !== 'https:' || destination.hostname !== 'accounts.google.com') throw new Error('로그인 주소를 확인하지 못했어요.');
       location.assign(destination.href);
@@ -89,4 +92,4 @@ async function refreshAccount() {
 }
 window.addEventListener('pageshow', () => { if (!account.loading) refreshAccount(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !account.loading) refreshAccount(); });
-refreshAccount();
+const accountReady = refreshAccount();
