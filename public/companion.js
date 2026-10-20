@@ -14,6 +14,7 @@
     toggle.innerHTML=`<faction-sprite faction="${id}"></faction-sprite>`+`<span class="companion-label">${names[id][0]} · 메뉴</span>`;
     toggle.setAttribute('aria-label',`${names[id][0]} 수호신 메뉴`);
     widget.querySelector('a[href*="sprite-lab"]').href=`sprite-lab.html?faction=${id}`;
+    widget.querySelector('[data-companion-world]').href='/adventure?faction='+id;
     widget.querySelector('strong').textContent=`${names[id][0]} · ${gods[id]}`;
   }
   function close(){menu.hidden=true;toggle.setAttribute('aria-expanded','false');}
