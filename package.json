@@ -1,15 +1,1 @@
-{
-  "name": "gggcworld",
-  "version": "0.1.0",
-  "private": true,
-  "description": "GGGC AI faction community prototype for Cloudflare Workers",
-  "scripts": {
-    "dev": "wrangler dev",
-    "check": "node --check public/app.js && node --check public/astra.js && node --check public/world.js && node --check public/companion.js",
-    "deploy": "wrangler deploy",
-    "build": "npm run check"
-  },
-  "devDependencies": {
-    "wrangler": "^4.0.0"
-  }
-}
+{"name":"gggcworld","version":"0.2.0","private":true,"type":"module","scripts":{"dev":"wrangler dev","check":"node --check public/app.js && node --check public/auth.js && node --check src/worker.js && node --check public/world.js && node --check public/divine-motion.js","test":"node --test tests/*.test.js","build":"npm run check && npm test","deploy":"wrangler deploy","db:local":"wrangler d1 migrations apply gggcworld --local","db:remote":"wrangler d1 migrations apply gggcworld --remote"},"dependencies":{"better-auth":"1.7.12"},"devDependencies":{"wrangler":"^4.0.0"}}
