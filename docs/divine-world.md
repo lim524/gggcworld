@@ -57,3 +57,17 @@ Browser QA compared open and closed eyes for all four characters side by side,
 verified the 32-step controls and default V4 selection. JS syntax checks passed.
 This is a lightweight canvas rig, not a newly hand-drawn action animation.
 Cloudflare deployment verification remains separate.
+
+## Blink overlay and theme surface cleanup
+
+Frames 21 and 23 no longer compress an open-eye rectangle over closed-eye art.
+All four characters now draw one native-size closed-eye patch per eye throughout
+the short blink, with 40 / 80 / 40 ms holds across frames 21 / 22 / 23. This avoids
+duplicated eyebrows and lashes without changing body motion, scale or props.
+Browser inspection checked all twelve character/frame combinations together.
+
+Category chips, post titles, notice rows, table headings, modal form fields,
+pagination, action buttons and companion menu rows use theme surface tokens.
+The six themes were checked for post label/title/table colors, with a separate
+dark form inspection. Text titles and menu rows use transparent backgrounds;
+chips and selected states retain intentional theme-colored surfaces.

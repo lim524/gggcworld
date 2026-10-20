@@ -11,20 +11,17 @@
   };
   function pose(id,frame) {
     const t=(frame%32)/32*Math.PI*2;
-    const blink=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.45,1,0.45,0,0,0,0,0,0,0,0,0][frame%32];
+    const blink=frame%32>=20&&frame%32<=22?1:0;
     return {t,blink,tilt:Math.sin(t)*0.025,bob:-Math.round((1-Math.cos(t))*1.5),sway:Math.sin(t+rigs[id].phase)*3};
   }
-  function blinkEyes(c,image,closed,rig,amount) {
+  function blinkEyes(c,closed,rig,amount) {
     if(!amount)return;
     const [dx,dy]=rig.closedOffset;
     for(const [x,y,w,h]of rig.eyes) {
-      // Reuse the character's actual closed-eye art; only this small eye region
-      // changes, with one shared blink value for left and right.
+      // One original eye patch at its native scale, including its lash line.
+      // Never squash a second open-eye/eyebrow patch over this drawing.
+      // Short transition durations give a quick blink without doubled lashes.
       c.drawImage(closed,x+dx,y+dy,w,h,x,y,w,h);
-      if(amount<1) {
-        const height=Math.max(2,Math.round(h*(1-amount)));
-        c.drawImage(image,x,y,w,h,x,y+h-height,w,height);
-      }
     }
   }
   function render(c,image,closed,id,frame) {
@@ -37,7 +34,7 @@
     c.drawImage(image,right-5,top,192-right+5,224-top,right+shift-5,top,192-right+5,224-top);
     c.drawImage(image,0,0,192,top,0,0,192,top);
     c.drawImage(image,left,top,right-left,224-top,left,top,right-left,224-top);
-    blinkEyes(c,image,closed,rig,p.blink);
+    blinkEyes(c,closed,rig,p.blink);
     // Small orbiting glints give each held symbol energy without changing its
     // shape or redrawing the hands. No opacity ghosting or global scale changes.
     const [px,py]=rig.prop;
