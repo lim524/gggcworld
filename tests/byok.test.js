@@ -8,6 +8,7 @@ function fixture(){
  const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');
  for(const file of ['0001_auth.sql','0002_member_profile.sql'])sql.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
  for(const id of ['a','b'])sql.prepare('INSERT INTO user(id,name,email,emailVerified,createdAt,updatedAt) VALUES (?,?,?,1,0,0)').run(id,'Name '+id,id+'@example.com');
+ sql.prepare('INSERT INTO member_profile(userId,name,faction) VALUES (?,?,?)').run('a','여행자A','astra');sql.prepare('INSERT INTO member_profile(userId,name,faction) VALUES (?,?,?)').run('b','여행자B','nox');
  const DB={prepare(query){let values=[];const stmt={bind(...params){values=params;return stmt;},async all(){return {results:sql.prepare(query).all(...values)};},async first(){return (await stmt.all()).results[0]||null;},async run(){return stmt.all();}};return stmt;}};
  const env={DB,BETTER_AUTH_URL:'https://gggc.example',BETTER_AUTH_SECRET:'test-only-vault-secret-32-characters',GOOGLE_CLIENT_ID:'x',GOOGLE_CLIENT_SECRET:'x'};
  const worker=createWorker(()=>({api:{getSession:async({headers})=>{const id=headers.get('Cookie');return ['a','b'].includes(id)?{user:{id}}:null;}}}));
@@ -38,4 +39,15 @@ test('BYOK rejects unsupported providers, malformed keys and oversized bodies',a
  assert.equal((await request('/api/me/keys/openai','GET',null,'a')).status,405);
  for(const invalid of ['', 'short', 'x'.repeat(513), 'sk-test with whitespace', 'sk-test-control\u0000andcharacters'])assert.equal((await request('/api/me/keys/openai','PUT',{key:invalid},'a')).status,400);
  assert.equal((await request('/api/me/keys/openai','PUT',{key:'x'.repeat(3000)},'a')).status,413);
+});
+
+test('BYOK only accepts the provider belonging to the immutable account faction',async()=>{
+ const {request,sql}=fixture();
+ for(const provider of ['anthropic','google','xai'])assert.equal((await request('/api/me/keys/'+provider,'PUT',{key},'a')).status,403);
+ assert.equal((await request('/api/me/keys/openai','PUT',{key,faction:'astra'},'b')).status,403);
+ assert.equal((await request('/api/me/keys/xai','PUT',{key},'b')).status,200);
+ assert.equal((await (await request('/api/me/keys','GET',null,'a')).json()).allowedProvider,'openai');
+ assert.equal((await (await request('/api/me/keys','GET',null,'b')).json()).allowedProvider,'xai');
+ sql.prepare('DELETE FROM member_profile WHERE userId = ?').run('a');
+ assert.equal((await request('/api/me/keys/openai','PUT',{key},'a')).status,403);
 });

@@ -1,5 +1,6 @@
 // Server-only encrypted BYOK vault. No endpoint returns or sends plaintext keys to providers.
 export const VAULT_SCHEMA="CREATE TABLE IF NOT EXISTS member_api_key (\n userId TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,\n provider TEXT NOT NULL CHECK(provider IN ('openai','anthropic','google','xai')),\n encrypted TEXT NOT NULL, suffix TEXT NOT NULL, updatedAt INTEGER NOT NULL,\n PRIMARY KEY(userId,provider)\n)";
+const factionProvider={astra:'openai',serin:'anthropic',lumi:'google',nox:'xai'};
 const providers=new Set(['openai','anthropic','google','xai']);
 const encoder=new TextEncoder();
 const json=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
@@ -28,9 +29,13 @@ export async function byok(request,env,auth){
  const listing=path==='/api/me/keys';
  if(!listing&&!providers.has(provider))return json({error:'지원하지 않는 AI 제공자예요.'},404);
  if((listing&&request.method!=='GET')||(!listing&&!['PUT','DELETE'].includes(request.method)))return json({error:'지원하지 않는 요청이에요.'},405);
+ const member=await env.DB.prepare('SELECT faction FROM member_profile WHERE userId = ?').bind(session.user.id).first();
+ const allowedProvider=factionProvider[member?.faction];
+ if(request.method!=='DELETE'&&!allowedProvider)return json({error:'먼저 닉네임과 진영을 확정해주세요.'},403);
+ if(request.method==='PUT'&&provider!==allowedProvider)return json({error:'선택한 진영과 같은 AI 제공자의 API 키만 등록할 수 있어요.'},403);
  // Idempotent schema creation allows existing D1 installations to use settings immediately.
  await env.DB.prepare(VAULT_SCHEMA).run();
- if(listing){const {results}=await env.DB.prepare('SELECT provider,suffix,updatedAt FROM member_api_key WHERE userId = ? ORDER BY provider').bind(session.user.id).all();return json({keys:results});}
+ if(listing){const {results}=await env.DB.prepare('SELECT provider,suffix,updatedAt FROM member_api_key WHERE userId = ? ORDER BY provider').bind(session.user.id).all();return json({keys:results,allowedProvider});}
  if(request.method==='DELETE'){await env.DB.prepare('DELETE FROM member_api_key WHERE userId = ? AND provider = ?').bind(session.user.id,provider).run();return json({deleted:true});}
  const reader=request.body?.getReader();let length=0,chunks=[];
  if(!reader)return json({error:'API 키를 입력해주세요.'},400);

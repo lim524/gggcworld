@@ -74,3 +74,21 @@ test('Google OAuth creates secure state; blocks external callbacks and forged st
   assert.equal(invalid.status, 302);
   assert.ok(!invalid.headers.get('set-cookie')?.includes('session_token='));
 });
+
+test('nickname guards reject duplicate registration, case changes and duplicate renames', async () => {
+  const {env,sql,request}=fixture();
+  const a=await signedSession(env,'unique-a'),b=await signedSession(env,'unique-b');
+  assert.equal((await request('/api/me','PATCH',{name:'Nora',faction:'astra'},a)).status,200);
+  let duplicate=await request('/api/me','PATCH',{name:'  nora  ',faction:'nox'},b);
+  assert.equal(duplicate.status,409);assert.match((await duplicate.json()).error,/닉네임/);
+  assert.equal((await request('/api/me','PATCH',{name:'노라친구',faction:'nox'},b)).status,200);
+  assert.equal((await request('/api/me','PATCH',{name:'NORA',faction:'nox'},b)).status,409);
+  assert.equal((await request('/api/me','PATCH',{name:'노라친구',faction:'nox'},b)).status,200);
+  assert.throws(()=>sql.prepare('UPDATE member_profile SET name=? WHERE userId=?').run('nOrA','unique-b'),/nickname_taken/);
+});
+test('concurrent users cannot claim the same nickname', async () => {
+  const {env,request}=fixture();
+  const a=await signedSession(env,'race-a'),b=await signedSession(env,'race-b');
+  const responses=await Promise.all([request('/api/me','PATCH',{name:'동시가입닉네임',faction:'astra'},a),request('/api/me','PATCH',{name:'동시가입닉네임',faction:'nox'},b)]);
+  assert.deepEqual(responses.map(r=>r.status).sort(),[200,409]);
+});
