@@ -1,18 +1,27 @@
 import {MAP_WIDTH,MAP_HEIGHT,REGION_LIMIT,REGION_NAMES,walkable} from './worldgen.js';
+import {REGION_THEMES} from './region-theme.js';
 /* Four reusable pixel assets. Terrain has no AI/API image generation cost. */
 let tint={},colors={grass:'#78a84b',dirt:'#cba36a'};
 function asset(w,h,paint){const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const c=canvas.getContext('2d');paint({fillRect:(...args)=>c.fillRect(...args),set fillStyle(value){c.fillStyle=tint[value]||value;}});return canvas;}
 function tiles(faction='nox'){
- const palettes={
- nox:{'#78a84b':'#6f687e','#cba36a':'#b49c9c','#8bb953':'#857a96','#648f3e':'#5c566e','#81ae4f':'#7c728b','#ba915d':'#99838d','#dbb67c':'#c9b6b0','#244e38':'#322c49','#356b3e':'#4b3c63','#4e8942':'#725383','#75a54b':'#ac87b3','#5f9747':'#8d689f','#565f59':'#514d65','#808b7e':'#80758f','#adb49f':'#b5abc5','#687367':'#655d78'},
- serin:{'#244e38':'#603c35','#356b3e':'#924d3a','#4e8942':'#bb6844','#75a54b':'#e5a35e','#5f9747':'#cf8250'},
- lumi:{'#244e38':'#24495a','#356b3e':'#35687a','#4e8942':'#4d8d91','#75a54b':'#8bb5af','#5f9747':'#6da4a8'},
- astra:{}
- };
- tint=palettes[faction]||{};colors={grass:tint['#78a84b']||'#78a84b',dirt:tint['#cba36a']||'#cba36a'};
+ const theme=REGION_THEMES[faction]||REGION_THEMES.nox;
+ tint=theme.palette;colors={grass:tint['#78a84b'],dirt:tint['#cba36a']};
  const grass=asset(32,32,c=>{c.fillStyle=colors.grass;c.fillRect(0,0,32,32);for(const [x,y]of[[3,6],[20,3],[12,22],[27,18]]){c.fillStyle='#8bb953';c.fillRect(x,y,3,1);c.fillStyle='#648f3e';c.fillRect(x+1,y-1,1,2);}c.fillStyle='#81ae4f';c.fillRect(7,13,2,1);c.fillRect(23,28,2,1);});
  const dirt=asset(32,32,c=>{c.fillStyle=colors.dirt;c.fillRect(0,0,32,32);for(const [x,y]of[[5,7],[22,4],[13,20],[27,26]]){c.fillStyle='#ba915d';c.fillRect(x,y,2,1);c.fillStyle='#dbb67c';c.fillRect(x-1,y+1,2,1);}});
- const tree=asset(32,48,c=>{c.fillStyle='#284b3738';c.fillRect(5,42,23,4);c.fillStyle='#62442f';c.fillRect(13,28,7,16);c.fillStyle='#99613b';c.fillRect(15,28,3,14);c.fillStyle='#244e38';for(const[x,y,w,h]of[[7,5,19,25],[3,14,26,17],[8,29,18,7]])c.fillRect(x,y,w,h);c.fillStyle='#356b3e';c.fillRect(7,8,18,21);c.fillRect(4,17,23,10);c.fillStyle='#4e8942';c.fillRect(9,6,13,16);c.fillRect(6,15,13,9);c.fillRect(19,18,7,8);c.fillStyle='#75a54b';c.fillRect(11,7,9,5);c.fillRect(7,16,7,5);c.fillStyle='#5f9747';c.fillRect(16,12,7,7);c.fillRect(10,26,9,5);});
+ const tree=asset(32,48,c=>{c.fillStyle='#284b3738';c.fillRect(5,42,23,4);c.fillStyle='#62442f';c.fillRect(13,28,7,16);c.fillStyle='#99613b';c.fillRect(15,28,3,14);if(theme.tree==='maple'){
+ c.fillStyle='#244e38';for(const[x,y,w,h]of[[13,3,6,5],[7,8,18,9],[3,15,26,13],[7,28,18,7]])c.fillRect(x,y,w,h);
+ c.fillStyle='#356b3e';c.fillRect(9,9,14,23);c.fillRect(5,17,22,10);
+ c.fillStyle='#4e8942';c.fillRect(13,5,5,20);c.fillRect(8,12,15,14);c.fillRect(5,19,22,5);
+ c.fillStyle='#75a54b';c.fillRect(13,7,4,8);c.fillRect(7,18,8,4);c.fillRect(18,13,5,5);
+ c.fillStyle='#5f9747';c.fillRect(11,24,10,7);c.fillRect(22,21,4,5);
+ }else if(theme.tree==='pine'){
+ c.fillStyle='#244e38';for(const[x,y,w,h]of[[13,2,6,6],[10,8,12,6],[7,14,18,7],[4,22,24,9],[7,31,18,5]])c.fillRect(x,y,w,h);
+ c.fillStyle='#356b3e';c.fillRect(14,5,4,28);c.fillRect(11,10,10,6);c.fillRect(8,17,16,7);c.fillRect(6,25,20,7);
+ c.fillStyle='#4e8942';c.fillRect(14,5,3,7);c.fillRect(12,12,7,6);c.fillRect(9,20,13,5);c.fillRect(7,28,15,4);
+ c.fillStyle='#75a54b';c.fillRect(14,4,2,4);c.fillRect(11,14,5,2);c.fillRect(8,23,7,2);
+ c.fillStyle='#5f9747';c.fillRect(18,19,4,3);c.fillRect(15,28,7,3);
+ }else{c.fillStyle='#244e38';for(const[x,y,w,h]of[[7,5,19,25],[3,14,26,17],[8,29,18,7]])c.fillRect(x,y,w,h);c.fillStyle='#356b3e';c.fillRect(7,8,18,21);c.fillRect(4,17,23,10);c.fillStyle='#4e8942';c.fillRect(9,6,13,16);c.fillRect(6,15,13,9);c.fillRect(19,18,7,8);c.fillStyle='#75a54b';c.fillRect(11,7,9,5);c.fillRect(7,16,7,5);c.fillStyle='#5f9747';c.fillRect(16,12,7,7);c.fillRect(10,26,9,5);}
+});
  const rock=asset(32,32,c=>{c.fillStyle='#284b3738';c.fillRect(5,25,23,4);c.fillStyle='#565f59';c.fillRect(5,16,23,10);c.fillRect(9,10,15,16);c.fillStyle='#808b7e';c.fillRect(7,16,18,8);c.fillRect(10,11,12,12);c.fillStyle='#adb49f';c.fillRect(11,11,9,4);c.fillRect(8,17,6,4);c.fillStyle='#687367';c.fillRect(19,17,7,7);});
  return{grass,dirt,tree,rock};
 }
@@ -29,8 +38,8 @@ let heldKeys=[],padDirection=null,swipe=null,avatar=null,lastSpriteFrame=-1;
 let viewport={w:1,h:1,dpr:1},raf=0,storageKey='';
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const touchUI=matchMedia('(hover: none) and (pointer: coarse)');
-const godNames={astra:'아스트라',serin:'세린',lumi:'루미',nox:'녹스'};
-const aiNames={astra:'GPT',serin:'Claude',lumi:'Gemini',nox:'Grok'};
+const godNames=Object.fromEntries(Object.entries(REGION_THEMES).map(([id,theme])=>[id,theme.name]));
+const aiNames=Object.fromEntries(Object.entries(REGION_THEMES).map(([id,theme])=>[id,theme.ai]));
 const tutorial=document.createElement('dialog');tutorial.className='explore-tutorial';tutorial.setAttribute('aria-labelledby','tutorial-title');
 tutorial.innerHTML='<div class="tutorial-layout"><div class="tutorial-portrait" aria-hidden="true"></div><div class="tutorial-body"><span class="eyebrow">FIRST ENCOUNTER</span><h2 id="tutorial-title">우리의 첫걸음</h2><h3 id="tutorial-speaker"></h3><p id="tutorial-welcome"></p><div class="tutorial-controls"><strong>이동 방법</strong><p id="tutorial-movement"></p><p>나무와 돌은 지나갈 수 없어. 열린 길 끝으로 가면 다음 초원으로 이어져.</p></div><small class="landscape-tip">휴대폰을 가로로 돌려도 같은 위치에서 계속 탐험할 수 있어.</small></div></div><form method="dialog"><button class="pixel-button">탐험 시작</button></form>';
 game.append(tutorial);
@@ -46,9 +55,10 @@ function showTutorial(){
  clearHeld();
  // Finish the current single step before pausing for the event.
  if(motion){player={...motion.to};motion=null;save();}
- const faction=chunk.faction,name=godNames[faction];
+ const faction=chunk.faction,name=godNames[faction],theme=REGION_THEMES[faction];
+ tutorial.querySelector('#tutorial-title').textContent=theme.title;
  tutorial.querySelector('#tutorial-speaker').textContent=name+' · '+aiNames[faction];
- tutorial.querySelector('#tutorial-welcome').textContent=faction==='nox'?'왔네! 여기가 황혼 초원이야. 어디로 갈지는 네가 골라. 우선 걷는 법부터 알려줄게.':name+'와 함께할 첫 초원이야. 우선 걷는 법부터 익혀볼까?';
+ tutorial.querySelector('#tutorial-welcome').textContent=theme.welcome;
  const portrait=document.createElement('faction-sprite');portrait.setAttribute('faction',faction);tutorial.querySelector('.tutorial-portrait').replaceChildren(portrait);
  syncInputHelp();draw(performance.now());tutorial.showModal();
 }
@@ -76,6 +86,7 @@ function resize(){const rect=canvas.getBoundingClientRect();viewport={w:rect.wid
 new ResizeObserver(()=>{if(active)resize();}).observe(canvas);
 function updateHud(data){
  ui.querySelector('#explore-region').textContent=data.region;
+ ui.querySelector('.explore-eyebrow').textContent=REGION_THEMES[chunk.faction].ai.toUpperCase()+' · '+godNames[chunk.faction];
  ui.querySelector('#explore-coordinate').textContent='구역 '+cx+', '+cy+' · '+(cx===0&&cy===0?'시작 초원':'진영 탐험지');
  ui.querySelector('#explore-discovery').textContent='최초 발견 · '+data.discoveredBy;
  canvas.setAttribute('aria-label',data.region+' 지도. 구역 '+cx+', '+cy+'. 방향키, WASD 또는 스와이프로 이동하세요.');
@@ -93,6 +104,7 @@ async function start(){
   const valid=saved&&[saved.cx,saved.cy,saved.x,saved.y].every(Number.isInteger)&&Math.abs(saved.cx)<=REGION_LIMIT&&Math.abs(saved.cy)<=REGION_LIMIT;
   cx=valid?saved.cx:0;cy=valid?saved.cy:0;
   const region=await loadRegion(cx,cy);chunk=region.chunk;art=tiles(chunk.faction);ui.dataset.faction=chunk.faction;
+  const theme=REGION_THEMES[chunk.faction];for(const [key,value]of Object.entries({accent:theme.accent,panel:theme.panel,border:theme.border,text:theme.text,backdrop:theme.backdrop}))game.style.setProperty('--meadow-'+key,value);game.style.setProperty('--accent',theme.accent);
   player=valid&&walkable(chunk,saved.x,saved.y)?{x:saved.x,y:saved.y}:{x:Math.floor(MAP_WIDTH/2),y:Math.floor(MAP_HEIGHT/2)};
   avatar?.remove();avatar=document.createElement('faction-sprite');avatar.setAttribute('faction',chunk.faction);avatar.setAttribute('still','');avatar.className='explore-avatar-source';avatar.setAttribute('aria-hidden','true');game.append(avatar);lastSpriteFrame=-1;
   entry.hidden=true;launch.hidden=true;
@@ -130,7 +142,7 @@ function draw(time){
  const cameraX=Math.max(0,Math.min(width-viewport.w,(position.x+.5)*tile-viewport.w/2));
  const cameraY=Math.max(0,Math.min(height-viewport.h,(position.y+.5)*tile-viewport.h/2));
  const offsetX=Math.round(width<viewport.w?(viewport.w-width)/2:-cameraX),offsetY=Math.round(height<viewport.h?(viewport.h-height)/2:-cameraY);
- ctx.setTransform(viewport.dpr,0,0,viewport.dpr,0,0);ctx.imageSmoothingEnabled=false;ctx.fillStyle='#254231';ctx.fillRect(0,0,viewport.w,viewport.h);
+ ctx.setTransform(viewport.dpr,0,0,viewport.dpr,0,0);ctx.imageSmoothingEnabled=false;ctx.fillStyle=REGION_THEMES[chunk.faction].backdrop;ctx.fillRect(0,0,viewport.w,viewport.h);
  const fromX=Math.max(0,Math.floor(-offsetX/tile)),toX=Math.min(chunk.width-1,Math.ceil((viewport.w-offsetX)/tile));
  const fromY=Math.max(0,Math.floor(-offsetY/tile)-1),toY=Math.min(chunk.height-1,Math.ceil((viewport.h-offsetY)/tile)+1);
  for(let y=fromY;y<=toY;y++)for(let x=fromX;x<=toX;x++){const i=y*chunk.width+x,px=offsetX+x*tile,py=offsetY+y*tile;ctx.drawImage(chunk.ground[i]===1?art.dirt:art.grass,px,py,tile,tile);

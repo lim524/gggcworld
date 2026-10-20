@@ -64,3 +64,10 @@ body{overflow:hidden}.game{min-height:0}
  .explore-tutorial .pixel-button{min-width:140px;width:auto;min-height:36px;padding:8px 20px}
  .game-entry{padding:60px 24px 20px;gap:12px}
 }
+
+/* The account faction tints scenery, controls and the first encounter together. */
+.exploring .game-bar,.explore-hud,.explore-return,.explore-help,.explore-notice,.explore-pad button{background:var(--meadow-panel,#192431e6);border-color:var(--meadow-border,#c8b39d66);color:var(--meadow-text,#f2e6ed)}
+.explore-screen[data-faction] .explore-hud h2,.explore-eyebrow,.tutorial-body h3{color:var(--meadow-accent,#e4c2ec)}
+.explore-tutorial{background:var(--meadow-panel,#192431e6);border-color:var(--meadow-border,#c8b39d66)}
+.explore-pad button:active{background:var(--meadow-backdrop,#302d40)}
+.explore-help span,.explore-hud small,.tutorial-body>p,.tutorial-controls p{color:var(--meadow-text,#e5d9e5)}
