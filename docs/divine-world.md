@@ -41,3 +41,19 @@ The theme is a browser-local cosmetic preference. Profile, faction and community
 data remain local prototypes; there is no server account authorization yet.
 
 The illustration-card experiment is on hold and was not added to the website.
+
+
+## V4: stable procedural idle motion
+
+V4 is the new default. It uses one fixed-size base drawing per character from
+the retained V3 sheet, not independently redrawn full-body frames. Thirty-two
+computed poses add a small anchored lean, bob, side hair/cape sway and orbiting
+prop glints. No per-pose scaling or full-body crossfade is used. Each character
+uses the original closed-eye patch from one V3 frame with measured offsets;
+both eyes share the exact same three-stage closure value. Blink patches do not
+replace the head or body. Existing 4/8/generated-32 versions remain in the lab.
+
+Browser QA compared open and closed eyes for all four characters side by side,
+verified the 32-step controls and default V4 selection. JS syntax checks passed.
+This is a lightweight canvas rig, not a newly hand-drawn action animation.
+Cloudflare deployment verification remains separate.
