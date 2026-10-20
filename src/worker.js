@@ -1,5 +1,6 @@
 import { configured, createAuth } from './auth.js';
 import { community } from './community.js';
+import { byok } from './byok.js';
 
 const FACTIONS = new Set(['astra', 'serin', 'lumi', 'nox']);
 const json = (data, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
@@ -21,6 +22,7 @@ export function createWorker(authFactory = createAuth) {
       if (!['GET', 'HEAD'].includes(request.method) && (request.headers.get('Origin') !== url.origin || !request.headers.get('Content-Type')?.startsWith('application/json'))) return json({ error: '잘못된 요청이에요.' }, 403);
       try {
         const auth = authFactory(env);
+        if (url.pathname === '/api/me/keys' || url.pathname.startsWith('/api/me/keys/')) return await byok(request, env, auth);
         if (url.pathname === '/api/posts' || url.pathname.startsWith('/api/posts/')) return community(request, env, auth);
         // Expose only the login flow; member profile writes belong to /api/me.
         if (url.pathname.startsWith('/api/auth/')) {
@@ -52,7 +54,7 @@ export function createWorker(authFactory = createAuth) {
         if (!result.meta.changes) return json({ error: '가입할 때 확정한 진영은 변경할 수 없어요.' }, 409);
         return json({ user: { id: session.user.id, profile, needsOnboarding: false } });
       } catch {
-        return json({ error: '로그인 서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.' }, 503);
+        return json({ error: '요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.' }, 503);
       }
     }
   };

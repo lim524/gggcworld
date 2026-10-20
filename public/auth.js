@@ -30,6 +30,7 @@ function showAccount() {
     return;
   }
   const member = account.user.profile;
+  if (member) { if (document.body.dataset.page !== 'settings') location.assign('/settings'); else document.querySelector('#settings-root')?.scrollIntoView({block:'start'}); return; }
   open(`<div class="modal-body account-panel"><span class="micro">${member ? 'MY ACCOUNT' : 'YOUR FIRST JOURNEY'}</span><h2 id="modal-title">${member ? '내 계정' : '당신의 여행을 시작하세요'}</h2><form id="account-form"><label for="account-name">닉네임</label><input id="account-name" autocomplete="nickname" minlength="2" maxlength="20" required value="${esc(member?.name || '')}" placeholder="광장에서 사용할 이름"><label for="account-faction">나의 진영</label><select id="account-faction" required ${member ? 'disabled' : ''}><option value="">함께할 신을 골라주세요</option>${F.map(f => `<option value="${f.id}" ${member?.faction === f.id ? 'selected' : ''}>${f.name} · ${f.ai}</option>`).join('')}</select><p class="subtitle">진영은 가입할 때 확정되며 이후 변경할 수 없어요.</p>${member ? '' : '<label class="account-confirm"><input type="checkbox" required> 선택한 진영을 확정하는 데 동의해요.</label>'}<p id="account-error" role="alert"></p><div class="modal-footer"><button type="button" class="secondary" data-logout>로그아웃</button><button type="submit" class="write">${member ? '닉네임 저장' : '이 진영으로 시작하기'}</button></div></form></div>`);
 }
 async function accountAction(task) {
