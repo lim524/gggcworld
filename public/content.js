@@ -1,5 +1,5 @@
 'use strict';
-const contentRoot=$('#content-root'),contentParams=new URLSearchParams(location.search),postId=contentParams.get('id'),editing=location.pathname==='/write.html';
+const contentRoot=$('#content-root'),contentParams=new URLSearchParams(location.search),postId=contentParams.get('id'),editing=document.body.dataset.page==='write';
 let currentPost=null,hasVoted=false,sending=false,loadedWriter=null,dirty=false,draftKey=null;
 function contentError(message){contentRoot.innerHTML=`<section class="content-card"><div class="status-panel"><h1>이야기를 열지 못했어요.</h1><p class="subtitle" role="alert">${esc(message)}</p><a class="secondary empty-action" href="/#board">광장으로 돌아가기</a></div></section>`;}
 function syncDetailAccount(){if(!currentPost)return;const owner=account.user?.id===currentPost.authorId;document.querySelectorAll('[data-owner-action]').forEach(el=>el.hidden=!owner);}
