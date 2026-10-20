@@ -27,3 +27,22 @@ tests/world-events.test.js에는 실제 Node SQLite를 사용하는 영속성·�
 공식 API 문서:
 - https://docs.x.ai/developers/grok-4-7
 - https://docs.x.ai/developers/model-capabilities/text/structured-outputs
+
+## 502 진단 구분
+
+이전 PROVIDER_ERROR 응답은 통신 예외·JSON 해석 실패·완료되지 않은 응답·빈 대사를 구분하지 못했습니다. 이 메시지만으로 과거 요청의 실제 원인을 소급 확정할 수 없습니다.
+
+이제 대화창 오류 문구에 구체적인 code를 표시하고 응답 JSON에 diagnosticId를 제공합니다. Worker 로그에는 event/diagnosticId/code/stage/upstreamStatus/model만 기록합니다. 질문, 대화, API 키, 제공자 오류 원문, 사용자 ID는 기록하지 않습니다.
+
+- PROVIDER_NETWORK / PROVIDER_READ_FAILED: 연결 또는 응답 읽기 실패
+- PROVIDER_TIMEOUT: 504, 대기 중단
+- PROVIDER_INVALID_JSON / PROVIDER_RESPONSE_FORMAT: 응답 형식 문제
+- PROVIDER_OUTPUT_LIMIT / PROVIDER_INCOMPLETE: 잘린 응답 또는 생성 미완료
+- PROVIDER_EMPTY_BODY / PROVIDER_EMPTY_OUTPUT: 본문 또는 표시할 대사 없음
+- PROVIDER_RESPONSE_TOO_LARGE: 256 KiB 응답 크기 제한
+- PROVIDER_REQUEST_REJECTED / PROVIDER_MODEL_UNAVAILABLE / PROVIDER_HTTP_ERROR: 제공자 HTTP 400·422 / 404 / 기타 오류
+- EVENT_SAVE_FAILED: 응답 이후 기록 저장 실패, 503
+
+잘린 응답을 성공으로 처리하거나 자동으로 유료 재요청하지 않습니다. 모델·출력 한도·비용 설정은 그대로 유지합니다. 임대 해제 실패가 원래 진단 응답을 덮어쓰지 않도록 하며, 임대는 기존 만료 시각으로 해제됩니다.
+
+검증: 파서 모형 9건, 실제 핸들러에 DB·제공자 모형을 주입한 26건(진단 시나리오 11건 포함)이 통과했습니다. 키·질문·오류 원문 비노출, 실패 시 성공 횟수 미증가, 임대 해제, 자동 재시도 없음도 확인했습니다. Node/SQLite 통합 테스트는 추가했으나 실행 환경 부재로 실행하지 못했습니다. 실제 xAI 호출 및 배포는 미검증입니다.

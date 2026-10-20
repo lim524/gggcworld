@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
-import {createWorldEvents,validateEventReply,EVENT_MODEL} from '../src/world-events.js';
+import {createWorldEvents,validateEventReply,EVENT_MODEL,parseProviderSpeech} from '../src/world-events.js';
 import {NOX_STONE,nearNoxStone,blocksNoxStone} from '../public/meadow-event.js';
 function fixture({key=true,fetcher,decrypt}={}){
  const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');
@@ -12,14 +12,14 @@ function fixture({key=true,fetcher,decrypt}={}){
  sql.prepare('INSERT INTO world_chunk(faction,x,y,version,data,createdAt) VALUES (?,?,?,?,?,?)').run('nox',0,0,1,'{}',1);
  if(key)sql.prepare('INSERT INTO member_api_key(userId,provider,encrypted,suffix,updatedAt) VALUES (?,?,?,?,?)').run('g','xai','test-cipher','1234',1);
  const DB={prepare(query){let values=[];const stmt={bind(...params){values=params;return stmt;},async all(){return{results:sql.prepare(query).all(...values),meta:{changes:sql.prepare('SELECT changes() AS n').get().n}};},async first(){return(await stmt.all()).results[0]||null;},async run(){return stmt.all();}};return stmt;}};
- let now=100000,calls=[];
+ let now=100000,calls=[],diagnostics=[];
  const fakeKey='sk-test-only-not-a-real-secret';
  const transport=async(url,options)=>{calls.push({url,options});return fetcher?fetcher(url,options):reply({reply:'읽을 수 없는 무늬네. 무슨 뜻인지는 아직 모르겠어. 옆에서 조금 더 살펴볼까?',emotion:'curious'});};
- const handle=createWorldEvents({fetcher:transport,decrypt:decrypt|| (async(secret,userId,provider,cipher)=>{assert.equal(provider,'xai');assert.equal(cipher,'test-cipher');return fakeKey;}),clock:()=>now,uuid:()=>crypto.randomUUID()});
+ const handle=createWorldEvents({fetcher:transport,decrypt:decrypt|| (async(secret,userId,provider,cipher)=>{assert.equal(provider,'xai');assert.equal(cipher,'test-cipher');return fakeKey;}),clock:()=>now,uuid:()=>crypto.randomUUID(),logger:entry=>diagnostics.push(entry)});
  const env={DB,BETTER_AUTH_SECRET:'test-secret-with-more-than-32-characters'};
  const auth={api:{getSession:async({headers})=>{const id=headers.get('Cookie');return ['g','g2','f'].includes(id)?{user:{id}}:null;}}};
  const request=(body,userId='g',method=body?'POST':'GET')=>handle(new Request('https://gggc.example/api/world/events/nox-stone',{method,headers:{'Content-Type':'application/json',...(userId?{Cookie:userId}:{})},...(body?{body:JSON.stringify(body)}:{})}),env,auth);
- return{sql,request,calls,fakeKey,tick:()=>{now+=6000;}};
+ return{sql,request,calls,diagnostics,fakeKey,tick:()=>{now+=6000;}};
 }
 function reply(speech){return new Response(JSON.stringify({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(speech)}]}]}),{headers:{'Content-Type':'application/json'}});}
 const position={cx:0,cy:0,x:17,y:12};
@@ -73,4 +73,40 @@ test('successful AI questions have a strict per-event cap',async()=>{
  for(let i=0;i<8;i++){assert.equal((await f.request(action('chat',{message:'무늬를 보자',requestId:'request-test-000'+i}))).status,200);f.tick();}
  assert.equal((await f.request(action('chat',{message:'한 번 더',requestId:'request-test-0009'}))).status,409);assert.equal(f.calls.length,8);
  assert.equal((await f.request(action('complete'))).status,200);
+});
+
+test('response parser distinguishes incomplete, empty, malformed and valid responses',()=>{
+ const fails=(result,code)=>assert.throws(()=>parseProviderSpeech(result),e=>e.providerFault===code);
+ fails(null,'PROVIDER_RESPONSE_FORMAT');
+ fails({status:'completed',output:{}},'PROVIDER_RESPONSE_FORMAT');
+ fails({status:'incomplete',incomplete_details:{reason:'max_output_tokens'}},'PROVIDER_OUTPUT_LIMIT');
+ fails({status:'incomplete'},'PROVIDER_INCOMPLETE');
+ fails({status:'failed'},'PROVIDER_RESPONSE_STATUS');
+ fails({status:'completed',output:[null,{type:'reasoning',encrypted_content:'private'}]},'PROVIDER_EMPTY_OUTPUT');
+ const wrapped=text=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text}]}]});
+ assert.equal(parseProviderSpeech(wrapped('not JSON')),null);
+ assert.deepEqual(parseProviderSpeech(wrapped(JSON.stringify({reply:'Look at the markings.',emotion:'curious'}))),{reply:'Look at the markings.',emotion:'curious'});
+});
+test('diagnostics classify provider failures without exposing keys, prompts or error bodies',async()=>{
+ const cases=[
+  [async()=>new Response('{broken'), 'PROVIDER_INVALID_JSON',502],
+  [async()=>new Response(JSON.stringify({status:'incomplete',incomplete_details:{reason:'max_output_tokens'}})),'PROVIDER_OUTPUT_LIMIT',502],
+  [async()=>new Response(JSON.stringify({status:'completed',output:[]})),'PROVIDER_EMPTY_OUTPUT',502],
+  [async()=>new Response('private-provider-error',{status:400}),'PROVIDER_REQUEST_REJECTED',502],
+  [async()=>new Response('private-provider-error',{status:404}),'PROVIDER_MODEL_UNAVAILABLE',502],
+  [async()=>new Response('private-provider-error',{status:503}),'PROVIDER_HTTP_ERROR',502],
+  [async()=>{throw Error('private-provider-error');},'PROVIDER_NETWORK',502],
+  [async()=>{throw new DOMException('private-provider-error','AbortError');},'PROVIDER_TIMEOUT',504],
+  [async()=>new Response('x'.repeat(262145)),'PROVIDER_RESPONSE_TOO_LARGE',502]
+ ];
+ for(const [fetcher,code,status]of cases){
+  const f=fixture({fetcher});await f.request(action('open'));
+  const response=await f.request(action('chat',{message:'private-user-question',requestId:'diagnostic-test-0001'}));
+  assert.equal(response.status,status);const data=await response.json();assert.equal(data.code,code);assert(data.diagnosticId);
+  assert.equal(f.calls.length,1);assert.equal(f.diagnostics.length,1);assert.equal(f.diagnostics[0].code,code);
+  const visible=JSON.stringify([data,f.diagnostics]);
+  for(const secret of [f.fakeKey,'private-user-question','private-provider-error','test-cipher'])assert(!visible.includes(secret));
+  assert.equal(f.sql.prepare('SELECT turns FROM world_event_progress WHERE userId=?').get('g').turns,0);
+  assert.equal(f.sql.prepare('SELECT leaseToken FROM world_event_progress WHERE userId=?').get('g').leaseToken,null);
+ }
 });

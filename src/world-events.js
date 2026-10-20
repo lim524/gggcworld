@@ -3,6 +3,17 @@ import {NOX_STONE,nearNoxStone} from '../public/meadow-event.js';
 const SCHEMA="CREATE TABLE IF NOT EXISTS world_event_progress (\n userId TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,eventId TEXT NOT NULL,\n foundAt INTEGER NOT NULL,inspectedAt INTEGER,transcript TEXT NOT NULL DEFAULT '[]',turns INTEGER NOT NULL DEFAULT 0,\n updatedAt INTEGER NOT NULL,lastAIAt INTEGER NOT NULL DEFAULT 0,leaseToken TEXT,leaseUntil INTEGER NOT NULL DEFAULT 0,lastRequestId TEXT,\n PRIMARY KEY(userId,eventId)\n)";
 export const EVENT_MODEL='grok-4.7';
 export const MAX_EVENT_TURNS=8;
+const providerFault=code=>Object.assign(new Error(code),{providerFault:code});
+export function parseProviderSpeech(result){
+ if(!result||typeof result!=='object'||Array.isArray(result))throw providerFault('PROVIDER_RESPONSE_FORMAT');
+ if(result.status==='incomplete')throw providerFault(result.incomplete_details?.reason==='max_output_tokens'?'PROVIDER_OUTPUT_LIMIT':'PROVIDER_INCOMPLETE');
+ if(result.status!=='completed')throw providerFault('PROVIDER_RESPONSE_STATUS');
+ if(!Array.isArray(result.output))throw providerFault('PROVIDER_RESPONSE_FORMAT');
+ const text=result.output.filter(item=>item?.type==='message'&&item.role==='assistant').flatMap(item=>Array.isArray(item.content)?item.content:[]).filter(item=>item?.type==='output_text'&&typeof item.text==='string').map(item=>item.text).join('');
+ if(!text.trim())throw providerFault('PROVIDER_EMPTY_OUTPUT');
+ let speech;try{speech=validateEventReply(JSON.parse(text));}catch{}
+ return speech||null;
+}
 const json=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const error=(message,status,code)=>json({error:message,code},status);
 const SYSTEM=[
@@ -29,14 +40,14 @@ async function readJSON(request,maxBytes){
  try{return JSON.parse(new TextDecoder().decode(bytes));}catch{return null;}
 }
 async function responseJSON(response){
- const reader=response.body?.getReader();if(!reader)throw Error('BAD_UPSTREAM');
- let size=0,parts=[];while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>262144){await reader.cancel();throw Error('BAD_UPSTREAM');}parts.push(value);}
+ const reader=response.body?.getReader();if(!reader)throw providerFault('PROVIDER_EMPTY_BODY');
+ let size=0,parts=[];while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>262144){try{await reader.cancel();}catch{}throw providerFault('PROVIDER_RESPONSE_TOO_LARGE');}parts.push(value);}
  const bytes=new Uint8Array(size);let offset=0;for(const part of parts){bytes.set(part,offset);offset+=part.length;}
- return JSON.parse(new TextDecoder().decode(bytes));
+ try{return JSON.parse(new TextDecoder().decode(bytes));}catch{throw providerFault('PROVIDER_INVALID_JSON');}
 }
 function history(row){try{const data=JSON.parse(row?.transcript||'[]');return Array.isArray(data)?data.filter(p=>p&&['user','assistant'].includes(p.role)&&typeof p.content==='string').slice(-16):[];}catch{return[];}}
 function state(row,aiReady){return{eventId:NOX_STONE.id,title:NOX_STONE.title,opening:NOX_STONE.opening,facts:NOX_STONE.facts,choices:NOX_STONE.choices,model:EVENT_MODEL,maxTurns:MAX_EVENT_TURNS,aiReady,found:Boolean(row),inspected:Boolean(row?.inspectedAt),foundAt:row?.foundAt||null,inspectedAt:row?.inspectedAt||null,turns:row?.turns||0,messages:history(row)};}
-export function createWorldEvents({fetcher=(...args)=>fetch(...args),decrypt=openKey,clock=()=>Date.now(),uuid=()=>crypto.randomUUID()}={}){
+export function createWorldEvents({fetcher=(...args)=>fetch(...args),decrypt=openKey,clock=()=>Date.now(),uuid=()=>crypto.randomUUID(),logger=entry=>console.warn(JSON.stringify(entry))}={}){
  return async function worldEvents(request,env,auth){
   if(new URL(request.url).pathname!=='/api/world/events/nox-stone')return error('찾을 수 없는 이벤트예요.',404,'NOT_FOUND');
   if(!['GET','POST'].includes(request.method))return error('지원하지 않는 요청이에요.',405,'METHOD');
@@ -76,6 +87,13 @@ export function createWorldEvents({fetcher=(...args)=>fetch(...args),decrypt=ope
   if(!locked.meta.changes)return error('답변을 준비하고 있어요. 잠시 후 다시 질문해주세요.',429,'BUSY');
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),45000);
   const onAbort=()=>controller.abort();request.signal?.addEventListener('abort',onAbort,{once:true});
+  const diagnosticId=uuid();
+  let stage='connect',upstreamStatus=null;
+  function failure(code,message,status=502){
+   // Allowlisted diagnostics only: never include keys, bodies, prompts or user identifiers.
+   try{logger({event:'nox_provider_failure',diagnosticId,code,stage,upstreamStatus,model:EVENT_MODEL});}catch{}
+   return json({error:message+' ['+code+']',code,diagnosticId},status);
+  }
   try{
    const messages=history(row);
    const upstream=await fetcher('https://api.x.ai/v1/responses',{method:'POST',redirect:'error',headers:{'Content-Type':'application/json',Authorization:'Bearer '+apiKey},signal:controller.signal,body:JSON.stringify({
@@ -83,19 +101,43 @@ export function createWorldEvents({fetcher=(...args)=>fetch(...args),decrypt=ope
     input:[{role:'system',content:SYSTEM},...messages,{role:'user',content:message}],
     text:{format:{type:'json_schema',name:'nox_event_speech',strict:true,schema:{type:'object',properties:{reply:{type:'string'},emotion:{type:'string',enum:['neutral','curious','amused']}},required:['reply','emotion'],additionalProperties:false}}}
    })});
-   if(!upstream.ok){await upstream.body?.cancel();if(upstream.status===401||upstream.status===403)return error('Grok API 키와 모델 사용 권한을 확인해주세요.',409,'KEY_INVALID');if(upstream.status===402||upstream.status===429)return error('Grok API 크레딧 또는 호출 한도를 확인해주세요.',429,'PROVIDER_LIMIT');return error('Grok 응답을 받지 못했어요. 잠시 후 다시 시도해주세요.',502,'PROVIDER_ERROR');}
+   upstreamStatus=upstream.status;
+   if(!upstream.ok){
+    stage='provider-http';try{await upstream.body?.cancel();}catch{}
+    if(upstream.status===401||upstream.status===403)return failure('KEY_INVALID','Grok API 키와 모델 사용 권한을 확인해주세요.',409);
+    if(upstream.status===402||upstream.status===429)return failure('PROVIDER_LIMIT','Grok API 크레딧 또는 호출 한도를 확인해주세요.',429);
+    if(upstream.status===400||upstream.status===422)return failure('PROVIDER_REQUEST_REJECTED','Grok이 서버의 요청 형식을 거부했어요.');
+    if(upstream.status===404)return failure('PROVIDER_MODEL_UNAVAILABLE','설정된 Grok 모델 또는 API 주소를 사용할 수 없어요.');
+    return failure('PROVIDER_HTTP_ERROR','Grok 서버에서 오류 응답을 받았어요.');
+   }
+   stage='read-response';
    const result=await responseJSON(upstream);
-   const text=result.output?.filter(item=>item.type==='message'&&item.role==='assistant').flatMap(item=>item.content||[]).filter(item=>item.type==='output_text').map(item=>item.text||'').join('');
-   if(result.status!=='completed'||!text)throw Error('BAD_UPSTREAM');
-   let speech;try{speech=validateEventReply(JSON.parse(text));}catch{}
+   stage='parse-response';
+   let speech=parseProviderSpeech(result);
    const fallback=!speech;
    if(!speech)speech={reply:'지금 확인할 수 있는 건 희미한 빛과 읽을 수 없는 무늬뿐이야. 함부로 결론 내리진 말자. 이 돌은 여기 두고, 주변 길을 천천히 살펴볼까?',emotion:'curious'};
    const transcript=[...messages,{role:'user',content:message},{role:'assistant',content:speech.reply}].slice(-16);
+   stage='save-record';
    const written=await env.DB.prepare('UPDATE world_event_progress SET transcript=?,turns=turns+1,updatedAt=?,lastRequestId=? WHERE userId=? AND eventId=? AND leaseToken=?').bind(JSON.stringify(transcript),clock(),requestId,userId,NOX_STONE.id,token).run();
    if(!written.meta.changes)return error('대화 상태가 바뀌었어요. 이벤트를 다시 열어주세요.',409,'STALE');
    return json({...state(await find(),true),emotion:speech.emotion,fallback});
-  }catch(cause){return error(cause?.name==='AbortError'?'답변 대기가 길어져 중단했어요. 자동으로 재요청하지 않아요.':'Grok 응답을 처리하지 못했어요. 잠시 후 다시 시도해주세요.',502,'PROVIDER_ERROR');}
-  finally{clearTimeout(timeout);request.signal?.removeEventListener('abort',onAbort);apiKey='';await env.DB.prepare('UPDATE world_event_progress SET leaseToken=NULL,leaseUntil=0 WHERE userId=? AND eventId=? AND leaseToken=?').bind(userId,NOX_STONE.id,token).run();}
+  }catch(cause){
+   if(controller.signal.aborted||cause?.name==='AbortError')return failure('PROVIDER_TIMEOUT','답변 대기가 중단됐어요. 자동으로 재요청하지 않아요.',504);
+   const known={
+    PROVIDER_EMPTY_BODY:'Grok 응답 본문이 비어 있어요.',
+    PROVIDER_RESPONSE_TOO_LARGE:'Grok 응답이 처리 가능한 크기를 초과했어요.',
+    PROVIDER_INVALID_JSON:'Grok 응답 본문을 JSON으로 읽지 못했어요.',
+    PROVIDER_RESPONSE_FORMAT:'Grok 응답 구조가 예상한 형식과 달라요.',
+    PROVIDER_OUTPUT_LIMIT:'Grok 답변이 출력 길이 제한으로 중단됐어요.',
+    PROVIDER_INCOMPLETE:'Grok이 답변을 완료하지 못했어요.',
+    PROVIDER_RESPONSE_STATUS:'Grok 응답이 완료 상태가 아니에요.',
+    PROVIDER_EMPTY_OUTPUT:'Grok 응답에 표시할 대사가 없어요.'
+   };
+   if(cause?.providerFault&&Object.hasOwn(known,cause.providerFault))return failure(cause.providerFault,known[cause.providerFault]);
+   if(stage==='save-record')return failure('EVENT_SAVE_FAILED','Grok 응답 후 대화 기록을 저장하지 못했어요. 다시 보내기 전 발견 기록을 확인해주세요.',503);
+   return failure(stage==='connect'?'PROVIDER_NETWORK':'PROVIDER_READ_FAILED',stage==='connect'?'서버에서 Grok으로 연결하지 못했어요.':'Grok 응답을 읽는 중 연결이 끊겼어요.');
+  }
+  finally{clearTimeout(timeout);request.signal?.removeEventListener('abort',onAbort);apiKey='';try{await env.DB.prepare('UPDATE world_event_progress SET leaseToken=NULL,leaseUntil=0 WHERE userId=? AND eventId=? AND leaseToken=?').bind(userId,NOX_STONE.id,token).run();}catch{try{logger({event:'nox_lease_release_failed',diagnosticId,model:EVENT_MODEL});}catch{}}}
  };
 }
 export const worldEvents=createWorldEvents();
