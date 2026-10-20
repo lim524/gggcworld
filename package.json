@@ -1,0 +1,13 @@
+{
+  "name": "gggcworld",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GGGC AI faction community prototype for Cloudflare Workers",
+  "scripts": {
+    "dev": "wrangler dev",
+    "check": "node --check public/app.js",
+    "deploy": "wrangler deploy",
+    "build": "npm run check"
+  },
+  "devDependencies": { "wrangler": "^4.0.0" }
+}
