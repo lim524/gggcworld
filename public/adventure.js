@@ -24,7 +24,7 @@
     document.querySelector('#dialogue-line').textContent=god.lines[page];
     document.querySelector('#dialogue-count').textContent=String(page+1).padStart(2,'0')+' / 03';
     const end=page===god.lines.length-1;
-    next.disabled=end;next.textContent=end?'첫 만남 완료':'다음 대화 ▾';
+    next.disabled=false;next.textContent=end?'초원 탐험 시작':'다음 대화 ▾';
     document.querySelector('#opening-caption').hidden=!end;
     try{localStorage.setItem(saveKey,JSON.stringify({started:true,page}));}catch{}
   }
@@ -32,8 +32,8 @@
     started=true;page=Number.isInteger(saved?.page)?Math.max(0,Math.min(god.lines.length-1,saved.page)):0;
     document.querySelector('#title-screen').hidden=true;document.querySelector('#opening-scene').hidden=false;game.classList.add('playing');showLine();next.disabled?document.querySelector('#game-settings').focus():next.focus();
   };
-  next.onclick=()=>{if(page<god.lines.length-1){page++;showLine();}};
-  document.addEventListener('keydown',e=>{if(!started||settings.open||e.repeat||e.altKey||e.ctrlKey||e.metaKey)return;if((e.key==='Enter'||e.key===' ')&&!['BUTTON','A','INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)){e.preventDefault();next.click();}});
+  next.onclick=()=>{if(page<god.lines.length-1){page++;showLine();}else if(window.GGGCExplore){window.GGGCExplore.start();}else{document.querySelector('#game-status').textContent='탐험 화면을 준비하고 있어요. 잠시 후 다시 눌러주세요.';}};
+  document.addEventListener('keydown',e=>{if(!started||window.GGGCExplore?.active||settings.open||e.repeat||e.altKey||e.ctrlKey||e.metaKey)return;if((e.key==='Enter'||e.key===' ')&&!['BUTTON','A','INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)){e.preventDefault();next.click();}});
   document.querySelector('#game-settings').onclick=()=>settings.showModal();
   const full=document.querySelector('#game-fullscreen');
   if(!document.fullscreenEnabled||!game.requestFullscreen){full.hidden=true;}
