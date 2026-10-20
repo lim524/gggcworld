@@ -25,3 +25,14 @@ Generated details differ slightly between frames, including some hair and clothi
 ## Validation
 
 JS syntax checks passed. Desktop browser QA verified all three character selections in the lab, explicit blink-frame controls for Serin and Nox, four map canvas sprites, faction dialogue selection and the map pause control. No website-origin console errors were observed. New mobile-device verification and Cloudflare deployment success have not been confirmed.
+
+
+## V2: eight-frame idle loops
+
+Default playback now uses `public/assets/{astra,serin,lumi,nox}-idle-v2.webp`. V1 assets and player configuration are retained. The lab offers 4-frame and 8-frame versions (`version=1` or `version=2`) for each character. Website playback defaults to V2.
+
+Eight states: neutral, inhale, inhale peak, exhale, half-closed eyes, closed eyes, half-open eyes, neutral. Frame durations are 1100, 180, 220, 220, 65, 95, 65, 550 milliseconds; the blink sequence stays short and the neutral poses hold longer. Frame count, manual controls, labels, and wraparound derive from the selected sheet.
+
+The sheets are new consistent eight-frame variants based on each V1 sheet. They do not splice newly generated art between the old four frames. Astra and Serin use a 4x2 landscape layout; Nox uses a 4x2 square layout; Lumi uses a 2x4 portrait layout to keep the staff and floating companion separated. Runtime source rectangles follow measured transparent gutters rather than assuming an integer grid. All frames have measured foot anchors and per-frame scales to hold a common foot baseline and figure height. This reduces positional jitter but cannot eliminate differences in generated hair, face or clothing details.
+
+Production prompt additions: exactly eight full-body frames, preserve existing character and costume, fixed pose and feet, no leaning or jumping; tiny breathing and hair-tip changes; neutral/inhale/peak/exhale/half-close/blink/half-open/neutral sequence; true transparency and generous gutters. Lumi was regenerated in portrait 2x4 after the landscape attempt overlapped accessories. New sheets were generated with the built-in image tool and encoded as quality-85 WebP with alpha preserved. Originals remain unchanged.

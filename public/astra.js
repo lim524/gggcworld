@@ -1,20 +1,23 @@
-/* Astra sprite pilot: four generated frames, foot-anchored at a shared baseline. */
+/* Shared idle sprite player: versioned sheets with foot-anchored frames. */
 (() => {
   'use strict';
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  const sheets = {"serin": {"width": 627, "height": 627, "scale": 0.313059, "frames": [{"x": 0, "y": 0, "anchor": 334, "foot": 579}, {"x": 627, "y": 0, "anchor": 291, "foot": 579}, {"x": 0, "y": 627, "anchor": 334, "foot": 552}, {"x": 627, "y": 627, "anchor": 296, "foot": 552}]}, "lumi": {"width": 627, "height": 627, "scale": 0.330813, "frames": [{"x": 0, "y": 0, "anchor": 319, "foot": 569}, {"x": 627, "y": 0, "anchor": 318, "foot": 569}, {"x": 0, "y": 627, "anchor": 320, "foot": 569}, {"x": 627, "y": 627, "anchor": 320, "foot": 569}]}, "nox": {"width": 627, "height": 627, "scale": 0.342466, "frames": [{"x": 0, "y": 0, "anchor": 330, "foot": 576}, {"x": 627, "y": 0, "anchor": 300, "foot": 576}, {"x": 0, "y": 627, "anchor": 334, "foot": 571}, {"x": 627, "y": 627, "anchor": 293, "foot": 571}]}, "astra": {"width": 627, "height": 627, "scale": 0.32, "frames": [{"x": 0, "y": 0, "anchor": 334, "foot": 602}, {"x": 627, "y": 0, "anchor": 324, "foot": 602}, {"x": 0, "y": 627, "anchor": 334, "foot": 585}, {"x": 627, "y": 627, "anchor": 324, "foot": 585}]}};
+  const legacySheets = {"serin": {"width": 627, "height": 627, "scale": 0.313059, "frames": [{"x": 0, "y": 0, "anchor": 334, "foot": 579}, {"x": 627, "y": 0, "anchor": 291, "foot": 579}, {"x": 0, "y": 627, "anchor": 334, "foot": 552}, {"x": 627, "y": 627, "anchor": 296, "foot": 552}]}, "lumi": {"width": 627, "height": 627, "scale": 0.330813, "frames": [{"x": 0, "y": 0, "anchor": 319, "foot": 569}, {"x": 627, "y": 0, "anchor": 318, "foot": 569}, {"x": 0, "y": 627, "anchor": 320, "foot": 569}, {"x": 627, "y": 627, "anchor": 320, "foot": 569}]}, "nox": {"width": 627, "height": 627, "scale": 0.342466, "frames": [{"x": 0, "y": 0, "anchor": 330, "foot": 576}, {"x": 627, "y": 0, "anchor": 300, "foot": 576}, {"x": 0, "y": 627, "anchor": 334, "foot": 571}, {"x": 627, "y": 627, "anchor": 293, "foot": 571}]}, "astra": {"width": 627, "height": 627, "scale": 0.32, "frames": [{"x": 0, "y": 0, "anchor": 334, "foot": 602}, {"x": 627, "y": 0, "anchor": 324, "foot": 602}, {"x": 0, "y": 627, "anchor": 334, "foot": 585}, {"x": 627, "y": 627, "anchor": 324, "foot": 585}]}};
+  const currentSheets = {"astra": {"frames": [{"x": 0, "y": 0, "width": 396, "height": 496, "anchor": 204.0, "foot": 465, "scale": 0.402299}, {"x": 396, "y": 0, "width": 397, "height": 496, "anchor": 204.0, "foot": 464, "scale": 0.403226}, {"x": 793, "y": 0, "width": 397, "height": 496, "anchor": 204.0, "foot": 464, "scale": 0.398633}, {"x": 1190, "y": 0, "width": 396, "height": 496, "anchor": 204.0, "foot": 464, "scale": 0.403226}, {"x": 0, "y": 496, "width": 396, "height": 496, "anchor": 203.0, "foot": 465, "scale": 0.402299}, {"x": 396, "y": 496, "width": 397, "height": 496, "anchor": 204.0, "foot": 464, "scale": 0.403226}, {"x": 793, "y": 496, "width": 397, "height": 496, "anchor": 205.0, "foot": 465, "scale": 0.402299}, {"x": 1190, "y": 496, "width": 396, "height": 496, "anchor": 203.0, "foot": 465, "scale": 0.402299}]}, "serin": {"frames": [{"x": 0, "y": 0, "width": 398, "height": 496, "anchor": 205.5, "foot": 464, "scale": 0.406977}, {"x": 398, "y": 0, "width": 394, "height": 496, "anchor": 209.0, "foot": 464, "scale": 0.405093}, {"x": 792, "y": 0, "width": 390, "height": 496, "anchor": 201.0, "foot": 464, "scale": 0.397727}, {"x": 1182, "y": 0, "width": 404, "height": 496, "anchor": 197.0, "foot": 464, "scale": 0.406977}, {"x": 0, "y": 496, "width": 400, "height": 496, "anchor": 221.0, "foot": 455, "scale": 0.398633}, {"x": 400, "y": 496, "width": 393, "height": 496, "anchor": 208.0, "foot": 454, "scale": 0.401376}, {"x": 793, "y": 496, "width": 389, "height": 496, "anchor": 201.0, "foot": 454, "scale": 0.401376}, {"x": 1182, "y": 496, "width": 404, "height": 496, "anchor": 183.0, "foot": 454, "scale": 0.399543}]}, "lumi": {"frames": [{"x": 0, "y": 0, "width": 444, "height": 444, "anchor": 231.0, "foot": 431, "scale": 0.443038}, {"x": 444, "y": 0, "width": 443, "height": 444, "anchor": 210.0, "foot": 431, "scale": 0.443038}, {"x": 0, "y": 444, "width": 444, "height": 443, "anchor": 230.0, "foot": 416, "scale": 0.443038}, {"x": 444, "y": 444, "width": 443, "height": 443, "anchor": 210.0, "foot": 416, "scale": 0.443038}, {"x": 0, "y": 887, "width": 444, "height": 443, "anchor": 230.0, "foot": 410, "scale": 0.440806}, {"x": 444, "y": 887, "width": 443, "height": 443, "anchor": 210.0, "foot": 410, "scale": 0.440806}, {"x": 0, "y": 1330, "width": 444, "height": 444, "anchor": 230.0, "foot": 396, "scale": 0.443038}, {"x": 444, "y": 1330, "width": 443, "height": 444, "anchor": 209.0, "foot": 396, "scale": 0.443038}]}, "nox": {"frames": [{"x": 0, "y": 0, "width": 314, "height": 627, "anchor": 156.0, "foot": 579, "scale": 0.464191}, {"x": 314, "y": 0, "width": 313, "height": 627, "anchor": 155.0, "foot": 580, "scale": 0.462963}, {"x": 627, "y": 0, "width": 314, "height": 627, "anchor": 155.0, "foot": 580, "scale": 0.454545}, {"x": 941, "y": 0, "width": 313, "height": 627, "anchor": 152.0, "foot": 580, "scale": 0.464191}, {"x": 0, "y": 627, "width": 314, "height": 627, "anchor": 155.0, "foot": 527, "scale": 0.464191}, {"x": 314, "y": 627, "width": 313, "height": 627, "anchor": 156.0, "foot": 527, "scale": 0.464191}, {"x": 627, "y": 627, "width": 313, "height": 627, "anchor": 155.5, "foot": 527, "scale": 0.464191}, {"x": 940, "y": 627, "width": 314, "height": 627, "anchor": 154.0, "foot": 527, "scale": 0.464191}]}};
   const names = {astra:'아스트라',serin:'세린',lumi:'루미',nox:'녹스'};
-  const durations = [1500,600,140,600];
+  const timings = {1:[1500,600,140,600],2:[1100,180,220,220,65,95,65,550]};
+  const labVersion = document.querySelector('#lab-sprite') && new URLSearchParams(location.search).get('version')==='1'?1:2;
   const cache = new Map();
   const scriptURL = document.currentScript.src;
-  function loadSheet(id) {
-    if(!cache.has(id)) {
+  function loadSheet(id,version) {
+    const key=`${id}:${version}`;
+    if(!cache.has(key)) {
       const image=new Image();
-      image.src=new URL(`assets/${id}-idle-v1.webp`,scriptURL).href;
+      image.src=new URL(`assets/${id}-idle-v${version}.webp`,scriptURL).href;
       const ready=image.decode();ready.catch(()=>{});
-      cache.set(id,{image,ready});
+      cache.set(key,{image,ready});
     }
-    return cache.get(id);
+    return cache.get(key);
   }
   const labFaction = new URLSearchParams(location.search).get('faction');
   if(document.querySelector('#lab-sprite') && names[labFaction]) {
@@ -24,14 +27,16 @@
     connectedCallback() {
       if(this.canvas) return;
       this.faction=names[this.getAttribute('faction')]?this.getAttribute('faction'):'astra';
-      this.sheet=sheets[this.faction];
-      const {image,ready}=loadSheet(this.faction);this.image=image;
+      this.version=labVersion;
+      this.sheet=(this.version===1?legacySheets:currentSheets)[this.faction];
+      this.durations=timings[this.version];
+      const {image,ready}=loadSheet(this.faction,this.version);this.image=image;
       this.innerHTML = '<canvas width="384" height="448" aria-hidden="true"></canvas>';
       this.canvas = this.querySelector('canvas');
       this.setAttribute('role','img');
       this.setAttribute('aria-label',`${names[this.faction]} · 숨쉬기와 눈 깜빡임 도트 애니메이션`);
       this.ctx = this.canvas.getContext('2d');
-      this.frame = Number(this.getAttribute('frame') || 0);
+      this.frame = Math.max(0,Math.min(this.sheet.frames.length-1,Number(this.getAttribute('frame'))||0));
       this.speed = 1;
       this.playing = !this.hasAttribute('still') && !reduced.matches;
       this.visible = false;
@@ -48,21 +53,22 @@
     }
     draw() {
       if(!this.ready) return;
-      const c=this.ctx,f=this.sheet.frames[this.frame],scale=this.sheet.scale;
+      const c=this.ctx,f=this.sheet.frames[this.frame],scale=f.scale??this.sheet.scale;
+      const width=f.width??this.sheet.width,height=f.height??this.sheet.height;
       c.setTransform(2,0,0,2,0,0);
       c.clearRect(0,0,192,224);
       c.imageSmoothingEnabled=false;
-      c.drawImage(this.image,f.x,f.y,this.sheet.width,this.sheet.height,96-f.anchor*scale,212-f.foot*scale,this.sheet.width*scale,this.sheet.height*scale);
+      c.drawImage(this.image,f.x,f.y,width,height,96-f.anchor*scale,212-f.foot*scale,width*scale,height*scale);
       this.dataset.frame=String(this.frame+1);
       this.dispatchEvent(new CustomEvent('spriteframe',{detail:{frame:this.frame}}));
     }
     schedule() {
       clearTimeout(this.timer);
       if(!this.ready || !this.playing || !this.visible || document.hidden) return;
-      this.timer=setTimeout(() => {this.frame=(this.frame+1)%4;this.draw();this.schedule();},durations[this.frame]/this.speed);
+      this.timer=setTimeout(() => {this.frame=(this.frame+1)%this.sheet.frames.length;this.draw();this.schedule();},this.durations[this.frame]/this.speed);
     }
     setPlaying(value) {this.playing=Boolean(value);this.schedule();}
-    setFrame(frame) {this.frame=Math.max(0,Math.min(3,frame));this.draw();this.schedule();}
+    setFrame(frame) {this.frame=Math.max(0,Math.min(this.sheet.frames.length-1,Number(frame)||0));this.draw();this.schedule();}
     setSpeed(value) {this.speed=value;this.schedule();}
     disconnectedCallback() {
       clearTimeout(this.timer);this.observer?.disconnect();
@@ -95,14 +101,23 @@
   if(lab) {
     const chooser=document.querySelector('#lab-faction');
     chooser.value=names[labFaction]?labFaction:'astra';
-    chooser.onchange=()=>{location.search=new URLSearchParams({faction:chooser.value}).toString();};
+    const versionChooser=document.querySelector('#lab-version');
+    versionChooser.value=String(labVersion);
+    const navigate=()=>{location.search=new URLSearchParams({faction:chooser.value,version:versionChooser.value}).toString();};
+    chooser.onchange=navigate;versionChooser.onchange=navigate;
+    const frameCount=lab.sheet.frames.length;
+    const descriptions=labVersion===1?['기본 대기','가벼운 숨쉬기','눈 감기','다시 대기']:['기본 대기','숨 들이쉬기','숨쉬기 정점','숨 내쉬기','눈 감기 시작','눈 감기','눈 뜨기','다시 대기'];
+    document.querySelector('#lab-frame-buttons').innerHTML=descriptions.map((_,i)=>`<button data-lab-frame="${i}" aria-pressed="${i===0}">${String(i+1).padStart(2,'0')}</button>`).join('');
+    document.querySelector('.frame-grid').innerHTML=descriptions.map((label,i)=>`<article class="frame-tile"><span>FRAME ${String(i+1).padStart(2,'0')}</span><faction-sprite faction="${chooser.value}" still frame="${i}"></faction-sprite><p>${label}</p></article>`).join('');
+    document.querySelector('#lab-status').textContent=`FRAME 01 / ${String(frameCount).padStart(2,'0')}`;
+    document.querySelector('#lab-description').textContent=labVersion===1?'기존 네 장의 대기 프레임을 비교해보세요.':'숨쉬기와 눈 깜빡임의 중간 단계를 더한 여덟 장의 대기 프레임이에요.';
     const play=document.querySelector('#lab-play');
     const update=()=>{play.textContent=lab.playing?'Ⅱ 일시정지':'▶ 재생';play.setAttribute('aria-pressed',String(lab.playing));};
     play.onclick=()=>{lab.setPlaying(!lab.playing);update();};
     document.querySelectorAll('[data-lab-frame]').forEach(button=>button.onclick=()=>{lab.setPlaying(false);lab.setFrame(Number(button.dataset.labFrame));update();});
     document.querySelector('#lab-speed').onchange=e=>lab.setSpeed(Number(e.target.value));
     document.querySelector('#lab-dark').onclick=e=>{const stage=document.querySelector('.lab-stage');stage.classList.toggle('night');e.currentTarget.setAttribute('aria-pressed',String(stage.classList.contains('night')));};
-    lab.addEventListener('spriteframe',e=>{document.querySelector('#lab-status').textContent=`FRAME 0${e.detail.frame+1} / 04`;document.querySelectorAll('[data-lab-frame]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.labFrame)===e.detail.frame)));});
+    lab.addEventListener('spriteframe',e=>{document.querySelector('#lab-status').textContent=`FRAME ${String(e.detail.frame+1).padStart(2,'0')} / ${String(frameCount).padStart(2,'0')}`;document.querySelectorAll('[data-lab-frame]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.labFrame)===e.detail.frame)));});
     update();
   }
 })();
