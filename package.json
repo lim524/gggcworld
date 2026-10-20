@@ -5,9 +5,11 @@
   "description": "GGGC AI faction community prototype for Cloudflare Workers",
   "scripts": {
     "dev": "wrangler dev",
-    "check": "node --check public/app.js",
+    "check": "node --check public/app.js && node --check public/astra.js && node --check public/world.js && node --check public/companion.js",
     "deploy": "wrangler deploy",
     "build": "npm run check"
   },
-  "devDependencies": { "wrangler": "^4.0.0" }
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
 }
