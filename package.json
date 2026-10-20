@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "check": "node --check public/community-app.js && node --check public/content.js && node --check public/auth.js && node --check src/worker.js && node --check src/community.js && node --check public/world.js && node --check public/divine-motion.js && node --check public/world-effects.js && node --check public/adventure.js && node --check public/companion.js && node --check public/settings.js && node --check src/byok.js && node --check src/world.js && node --check public/worldgen.js && node --check public/explore.js && node --check public/region-theme.js",
+    "check": "node --check public/community-app.js && node --check public/content.js && node --check public/auth.js && node --check src/worker.js && node --check src/community.js && node --check public/world.js && node --check public/divine-motion.js && node --check public/world-effects.js && node --check public/adventure.js && node --check public/companion.js && node --check public/settings.js && node --check src/byok.js && node --check src/world.js && node --check public/worldgen.js && node --check public/explore.js && node --check public/region-theme.js && node --check src/world-events.js && node --check public/meadow-event.js && node --check public/stone-event-ui.js",
     "test": "node --test tests/*.test.js",
     "build": "npm run check && npm test",
     "deploy": "wrangler deploy",

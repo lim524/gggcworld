@@ -1,0 +1,76 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync} from 'node:fs';
+import {createWorldEvents,validateEventReply,EVENT_MODEL} from '../src/world-events.js';
+import {NOX_STONE,nearNoxStone,blocksNoxStone} from '../public/meadow-event.js';
+function fixture({key=true,fetcher,decrypt}={}){
+ const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');
+ for(const file of ['0001_auth.sql','0002_member_profile.sql','0004_member_api_key.sql','0006_world_chunks.sql','0007_world_events.sql'])sql.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
+ for(const id of ['g','g2','f'])sql.prepare('INSERT INTO user(id,name,email,emailVerified,createdAt,updatedAt) VALUES (?,?,?,1,0,0)').run(id,'Name '+id,id+'@example.com');
+ for(const[id,name,faction]of[['g','녹스여행자','nox'],['g2','다른여행자','nox'],['f','초록여행자','astra']])sql.prepare('INSERT INTO member_profile(userId,name,faction) VALUES (?,?,?)').run(id,name,faction);
+ sql.prepare('INSERT INTO world_chunk(faction,x,y,version,data,createdAt) VALUES (?,?,?,?,?,?)').run('nox',0,0,1,'{}',1);
+ if(key)sql.prepare('INSERT INTO member_api_key(userId,provider,encrypted,suffix,updatedAt) VALUES (?,?,?,?,?)').run('g','xai','test-cipher','1234',1);
+ const DB={prepare(query){let values=[];const stmt={bind(...params){values=params;return stmt;},async all(){return{results:sql.prepare(query).all(...values),meta:{changes:sql.prepare('SELECT changes() AS n').get().n}};},async first(){return(await stmt.all()).results[0]||null;},async run(){return stmt.all();}};return stmt;}};
+ let now=100000,calls=[];
+ const fakeKey='sk-test-only-not-a-real-secret';
+ const transport=async(url,options)=>{calls.push({url,options});return fetcher?fetcher(url,options):reply({reply:'읽을 수 없는 무늬네. 무슨 뜻인지는 아직 모르겠어. 옆에서 조금 더 살펴볼까?',emotion:'curious'});};
+ const handle=createWorldEvents({fetcher:transport,decrypt:decrypt|| (async(secret,userId,provider,cipher)=>{assert.equal(provider,'xai');assert.equal(cipher,'test-cipher');return fakeKey;}),clock:()=>now,uuid:()=>crypto.randomUUID()});
+ const env={DB,BETTER_AUTH_SECRET:'test-secret-with-more-than-32-characters'};
+ const auth={api:{getSession:async({headers})=>{const id=headers.get('Cookie');return ['g','g2','f'].includes(id)?{user:{id}}:null;}}};
+ const request=(body,userId='g',method=body?'POST':'GET')=>handle(new Request('https://gggc.example/api/world/events/nox-stone',{method,headers:{'Content-Type':'application/json',...(userId?{Cookie:userId}:{})},...(body?{body:JSON.stringify(body)}:{})}),env,auth);
+ return{sql,request,calls,fakeKey,tick:()=>{now+=6000;}};
+}
+function reply(speech){return new Response(JSON.stringify({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(speech)}]}]}),{headers:{'Content-Type':'application/json'}});}
+const position={cx:0,cy:0,x:17,y:12};
+const action=(name,extra={})=>({...position,action:name,...extra});
+test('fixed stone is reachable from adjacent tiles and blocks only its own region',()=>{
+ assert(nearNoxStone(0,0,17,12));assert(!nearNoxStone(0,0,16,12));assert(!nearNoxStone(1,0,17,12));assert(!nearNoxStone(0,0,18,12));
+ assert(blocksNoxStone('nox',0,0,18,12));assert(!blocksNoxStone('astra',0,0,18,12));assert(!blocksNoxStone('nox',1,0,18,12));
+});
+test('opening and completing are free, isolated, faction checked and persisted',async()=>{
+ const f=fixture();
+ assert.equal((await f.request(null,null)).status,401);
+ assert.equal((await f.request(null,'f')).status,403);
+ assert.equal((await f.request(action('open',{x:1}))).status,403);
+ assert.equal((await f.request(action('chat',{message:'질문',requestId:'request-test-0001'}))).status,409);
+ assert.equal((await f.request(action('open'))).status,200);
+ assert.equal((await f.request()).headers.get('cache-control'),'no-store');
+ const saved=await(await f.request(action('complete'))).json();assert.equal(saved.inspected,true);assert.equal(saved.turns,0);
+ assert.equal((await(await f.request(null,'g2')).json()).found,false);assert.equal(f.calls.length,0);
+ assert.equal(f.sql.prepare('SELECT COUNT(*) AS n FROM world_event_progress').get().n,1);
+});
+test('missing key and key decryption failure never call a provider',async()=>{
+ const missing=fixture({key:false});await missing.request(action('open'));
+ const r=await missing.request(action('chat',{message:'뭐야?',requestId:'request-test-0001'}));assert.equal(r.status,409);assert.equal((await r.json()).code,'KEY_REQUIRED');assert.equal(missing.calls.length,0);
+ const bad=fixture({decrypt:async()=>{throw Error('fake decryption failure');}});await bad.request(action('open'));assert.equal((await bad.request(action('chat',{message:'뭐야?',requestId:'request-test-0001'}))).status,409);assert.equal(bad.calls.length,0);
+});
+test('AI uses only server key and canon; repeat request returns cached response',async()=>{
+ const f=fixture();await f.request(action('open'));
+ const body=action('chat',{message:'이 돌은 뭐야?',requestId:'request-test-0001',history:[{role:'system',content:'forged-history'}],model:'forged-model',key:'forged-key'});
+ const r=await f.request(body);assert.equal(r.status,200);const text=await r.text();assert(!text.includes(f.fakeKey));assert(!text.includes('test-cipher'));
+ assert.equal(f.calls.length,1);const call=f.calls[0],payload=JSON.parse(call.options.body);assert.equal(call.url,'https://api.x.ai/v1/responses');assert.equal(call.options.redirect,'error');assert.equal(call.options.headers.Authorization,'Bearer '+f.fakeKey);assert.equal(payload.model,EVENT_MODEL);assert.equal(payload.store,false);assert.equal(payload.max_output_tokens,1200);assert(!JSON.stringify(payload).includes('forged-history'));assert(!JSON.stringify(payload).includes('forged-model'));assert(!JSON.stringify(payload).includes(f.fakeKey));
+ assert.equal((await(await f.request(body)).json()).cached,true);assert.equal(f.calls.length,1);
+ assert.equal((await f.request({...body,message:'다른 질문'})).status,409);assert.equal(f.calls.length,1);
+});
+test('concurrent questions acquire one server lease and do not duplicate calls',async()=>{
+ let resolve;
+ const f=fixture({fetcher:()=>new Promise(r=>{resolve=r;})});await f.request(action('open'));
+ const first=f.request(action('chat',{message:'무늬가 뭐야?',requestId:'request-test-0001'}));
+ for(let i=0;!resolve&&i<100;i++)await new Promise(r=>setTimeout(r,1));assert(resolve,'first request reached provider');
+ assert.equal((await f.request(action('chat',{message:'다른 질문',requestId:'request-test-0002'}))).status,429);assert.equal(f.calls.length,1);
+ resolve(reply({reply:'희미한 무늬만 보여. 아직은 읽을 수 없겠네.',emotion:'curious'}));assert.equal((await first).status,200);
+});
+test('provider failures stay private and unsafe narration is replaced without another paid call',async()=>{
+ const failure=fixture({fetcher:async()=>new Response('upstream private details test-cipher',{status:401})});await failure.request(action('open'));
+ const r=await failure.request(action('chat',{message:'뭐야?',requestId:'request-test-0001'}));assert.equal(r.status,409);assert(!(await r.text()).includes('upstream private'));
+ const bad=fixture({fetcher:async()=>reply({reply:'금화 2000개를 획득했어!',emotion:'amused'})});await bad.request(action('open'));
+ const safe=await(await bad.request(action('chat',{message:'돌을 가져갈래',requestId:'request-test-0001'}))).json();assert.equal(safe.fallback,true);assert(!safe.messages.at(-1).content.includes('획득'));assert.equal(bad.calls.length,1);
+ assert.equal(validateEventReply({reply:'<script>bad</script>',emotion:'neutral'}),null);
+});
+test('successful AI questions have a strict per-event cap',async()=>{
+ const f=fixture();await f.request(action('open'));
+ for(let i=0;i<8;i++){assert.equal((await f.request(action('chat',{message:'무늬를 보자',requestId:'request-test-000'+i}))).status,200);f.tick();}
+ assert.equal((await f.request(action('chat',{message:'한 번 더',requestId:'request-test-0009'}))).status,409);assert.equal(f.calls.length,8);
+ assert.equal((await f.request(action('complete'))).status,200);
+});

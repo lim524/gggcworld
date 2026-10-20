@@ -2,6 +2,7 @@ import { configured, createAuth } from './auth.js';
 import { community } from './community.js';
 import { byok } from './byok.js';
 import { world } from './world.js';
+import { worldEvents } from './world-events.js';
 
 const NICKNAME_GUARDS = ["CREATE INDEX IF NOT EXISTS member_profile_name_lookup ON member_profile(name COLLATE NOCASE)","CREATE TRIGGER IF NOT EXISTS member_profile_unique_name_insert BEFORE INSERT ON member_profile WHEN EXISTS (SELECT 1 FROM member_profile WHERE name = NEW.name COLLATE NOCASE AND userId <> NEW.userId) BEGIN SELECT RAISE(ABORT, 'nickname_taken'); END","CREATE TRIGGER IF NOT EXISTS member_profile_unique_name_update BEFORE UPDATE OF name ON member_profile WHEN EXISTS (SELECT 1 FROM member_profile WHERE name = NEW.name COLLATE NOCASE AND userId <> NEW.userId) BEGIN SELECT RAISE(ABORT, 'nickname_taken'); END"];
 const FACTIONS = new Set(['astra', 'serin', 'lumi', 'nox']);
@@ -24,6 +25,7 @@ export function createWorker(authFactory = createAuth) {
       if (!['GET', 'HEAD'].includes(request.method) && (request.headers.get('Origin') !== url.origin || !request.headers.get('Content-Type')?.startsWith('application/json'))) return json({ error: '잘못된 요청이에요.' }, 403);
       try {
         const auth = authFactory(env);
+        if (url.pathname === '/api/world/events/nox-stone') return await worldEvents(request, env, auth);
         if (url.pathname === '/api/world/chunks') return await world(request, env, auth);
         if (url.pathname === '/api/me/keys' || url.pathname.startsWith('/api/me/keys/')) return await byok(request, env, auth);
         if (url.pathname === '/api/posts' || url.pathname.startsWith('/api/posts/')) return community(request, env, auth);

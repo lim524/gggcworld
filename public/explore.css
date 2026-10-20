@@ -71,3 +71,58 @@ body{overflow:hidden}.game{min-height:0}
 .explore-tutorial{background:var(--meadow-panel,#192431e6);border-color:var(--meadow-border,#c8b39d66)}
 .explore-pad button:active{background:var(--meadow-backdrop,#302d40)}
 .explore-help span,.explore-hud small,.tutorial-body>p,.tutorial-controls p{color:var(--meadow-text,#e5d9e5)}
+
+/* One discoverable rock; event dialogue pauses the same map beneath it. */
+.stone-interact{position:absolute;left:50%;bottom:115px;transform:translateX(-50%);min-height:44px;max-width:calc(100% - 28px);padding:12px 18px;background:#3b2a50ed;color:#f1d9ff;border:1px solid #dfb9f0;border-radius:5px;box-shadow:0 4px 15px #18223766;font-size:12px;white-space:nowrap}
+.stone-interact:hover{background:#624373}.stone-interact[hidden],.stone-journal[hidden]{display:none}
+.stone-journal{position:absolute;top:138px;right:22px;min-height:34px;padding:8px 11px;background:var(--meadow-panel,#192431e6);border:1px solid var(--meadow-border,#c8b39d66);border-radius:4px;color:var(--meadow-text,#f2e6ed);font-size:10px}
+.stone-dialog{width:min(860px,calc(100% - 28px));max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);overflow:auto;padding:24px;background:#25283a;border:1px solid #cdb4df;border-radius:5px;color:#f0e6ed}
+.stone-dialog::backdrop,.stone-log::backdrop{background:#14203280;backdrop-filter:blur(2px)}
+.stone-event-layout{display:grid;grid-template-columns:125px minmax(0,1fr);gap:23px}
+.stone-portrait{align-self:start;padding-top:35px;position:sticky;top:12px}
+.stone-portrait faction-sprite{width:125px;filter:drop-shadow(0 5px 5px #18203680)}
+.stone-story h2{font-size:23px;margin:9px 0}.stone-story h3{font-size:12px;color:#dbb4ec;margin:0 0 15px}
+.stone-story .stone-opening{font-size:13px;line-height:1.9;color:#f2e7ef;margin:0 0 14px}
+.stone-facts{background:#ffffff06;border:1px solid #d6c2e028;border-radius:4px;padding:10px 12px;font-size:11px;color:#c8bcd6;margin-bottom:14px}
+.stone-facts summary{cursor:pointer;color:#e0c4ee}.stone-facts ul{padding-left:17px;margin:8px 0 0}.stone-facts li{line-height:1.8;margin:5px 0}
+.stone-messages{max-height:240px;overflow:auto;scrollbar-width:thin;padding-right:5px;overscroll-behavior:contain}
+.stone-messages:empty{display:none}.stone-messages p{padding:10px 12px;border-radius:5px;margin:8px 0;background:#3b354c}
+.stone-messages p.stone-user{background:#253b46}.stone-messages strong{display:block;font-size:10px;color:#c7b2d6;margin-bottom:5px}
+.stone-messages span{display:block;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.85}
+.stone-chat{border-top:1px solid #d5c2dd33;padding-top:14px;margin-top:18px}
+.stone-chat p.stone-cost{font-size:10px;line-height:1.8;color:#d8c9aa;margin:0 0 10px}
+.stone-key-note{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:7px 0 14px}
+.stone-key-note a{font-size:10px;color:#b7c7d0;text-decoration:underline;text-underline-offset:3px}
+.stone-key-note.key-needed a{color:#f0d7ad}
+.stone-key-note button,.stone-choices button{border:1px solid #bca1ce55;border-radius:4px;background:#342e46;color:#e8daee;font-size:11px;padding:9px 12px;min-height:36px}
+.stone-choices{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0 15px}
+.stone-choices button:hover{background:#52405c}
+.stone-question label{display:block;font-size:11px;color:#cfbedb;margin-bottom:7px}
+.stone-question>div{display:flex;gap:8px}
+.stone-question input{min-width:0;flex:1;background:#1b2535;border:1px solid #bba3cf66;border-radius:4px;padding:12px;color:#f4edf3;font:inherit;font-size:13px}
+.stone-question button{min-height:42px;padding:10px 15px;border:1px solid #e0bee5;background:#d9bee0;color:#302c3a;font-size:11px;border-radius:4px;white-space:nowrap}
+.stone-dialog button:disabled,.stone-dialog input:disabled{opacity:.45;cursor:default}
+.stone-message{font-size:11px;line-height:1.8;color:#edcaaa;overflow-wrap:anywhere;min-height:18px;margin:10px 0 0}
+.stone-footer{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-top:16px}
+.stone-footer>span{font-size:9px;color:#aba9bd;line-height:1.8}.stone-footer .pixel-button{font-size:11px;min-width:170px;min-height:42px;padding:10px 14px;letter-spacing:0}
+.stone-log{width:min(520px,calc(100% - 32px));max-height:calc(100dvh - 30px);overflow:auto;background:#24293d;border-color:#c9b1dc}
+.stone-log h2{font-size:22px}.stone-log-content h3{font-size:16px;color:#e5c3ef}.stone-log-content p{font-size:12px;line-height:1.9;color:#d6cedf}
+.stone-log form{display:flex;justify-content:flex-end;margin-top:22px}.stone-log .pixel-button{font-size:12px;min-width:130px;min-height:40px}
+@media(max-width:700px){
+ .stone-dialog{padding:18px 14px}.stone-event-layout{grid-template-columns:65px minmax(0,1fr);gap:13px}.stone-portrait faction-sprite{width:65px}.stone-portrait{padding-top:45px}
+ .stone-story h2{font-size:20px}.stone-story h3{font-size:10px}.stone-story .stone-opening{font-size:12px}.stone-messages span{font-size:12px}
+ .stone-choices{gap:6px}.stone-choices button{font-size:10px;min-height:40px}
+ .stone-key-note{align-items:flex-start}.stone-key-note button{padding:7px 9px;font-size:9px;white-space:nowrap}
+ .stone-question>div{flex-direction:column}.stone-question input{font-size:16px}.stone-question button{min-height:42px}
+ .stone-footer{flex-direction:column;align-items:stretch;gap:10px}.stone-footer .pixel-button{width:100%}
+ .stone-interact{bottom:172px;font-size:11px}.stone-journal{right:max(12px,env(safe-area-inset-right));top:130px;font-size:9px}
+}
+@media(orientation:landscape) and (max-height:540px){
+ .stone-dialog{width:min(780px,calc(100% - 32px));padding:14px 18px}.stone-event-layout{grid-template-columns:80px minmax(0,1fr);gap:16px}.stone-portrait faction-sprite{width:80px}.stone-portrait{padding-top:20px}
+ .stone-story h2{font-size:18px;margin:5px 0}.stone-story h3{margin-bottom:8px}.stone-story .stone-opening{font-size:12px}
+ .stone-messages{max-height:150px}.stone-chat{margin-top:10px;padding-top:10px}.stone-footer{flex-direction:row;align-items:center;margin-top:10px}
+ .stone-question>div{flex-direction:row}.stone-question input{font-size:14px}.stone-footer .pixel-button{width:auto}
+ .stone-interact{bottom:max(18px,env(safe-area-inset-bottom));font-size:10px}.stone-journal{top:116px;right:max(12px,env(safe-area-inset-right))}
+}
+
+.stone-privacy{font-size:10px;line-height:1.8;color:#beb6cc;margin:0 0 12px}

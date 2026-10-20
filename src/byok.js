@@ -1,4 +1,4 @@
-// Server-only encrypted BYOK vault. No endpoint returns or sends plaintext keys to providers.
+// Server-only encrypted BYOK vault. Keys never appear in HTTP responses; authorized event calls use the server-side key.
 export const VAULT_SCHEMA="CREATE TABLE IF NOT EXISTS member_api_key (\n userId TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,\n provider TEXT NOT NULL CHECK(provider IN ('openai','anthropic','google','xai')),\n encrypted TEXT NOT NULL, suffix TEXT NOT NULL, updatedAt INTEGER NOT NULL,\n PRIMARY KEY(userId,provider)\n)";
 const factionProvider={astra:'openai',serin:'anthropic',lumi:'google',nox:'xai'};
 const providers=new Set(['openai','anthropic','google','xai']);
@@ -15,7 +15,7 @@ export async function sealKey(secret,userId,provider,key){
  const encrypted=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:encoder.encode(JSON.stringify([userId,provider]))},await vaultKey(secret),encoder.encode(key));
  return 'v1.'+b64(iv)+'.'+b64(new Uint8Array(encrypted));
 }
-// Reserved for future server-side provider requests; not exposed through HTTP.
+// Used only by server-side provider requests; never exposed through HTTP.
 export async function openKey(secret,userId,provider,sealed){
  const [version,iv,data]=sealed.split('.');if(version!=='v1')throw new Error('Invalid vault version');
  const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes(iv),additionalData:encoder.encode(JSON.stringify([userId,provider]))},await vaultKey(secret),bytes(data));

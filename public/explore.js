@@ -1,5 +1,7 @@
 import {MAP_WIDTH,MAP_HEIGHT,REGION_LIMIT,REGION_NAMES,walkable} from './worldgen.js';
 import {REGION_THEMES} from './region-theme.js';
+import {blocksNoxStone} from './meadow-event.js';
+import {createStoneEvent} from './stone-event-ui.js';
 /* Four reusable pixel assets. Terrain has no AI/API image generation cost. */
 let tint={},colors={grass:'#78a84b',dirt:'#cba36a'};
 function asset(w,h,paint){const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const c=canvas.getContext('2d');paint({fillRect:(...args)=>c.fillRect(...args),set fillStyle(value){c.fillStyle=tint[value]||value;}});return canvas;}
@@ -35,7 +37,7 @@ const directions={up:[0,-1],left:[-1,0],right:[1,0],down:[0,1]};
 const keyDirections={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
 let active=false,busy=false,user=null,chunk=null,cx=0,cy=0,player={x:16,y:12},motion=null,frame=0,lastMove=0,lastSave=0;
 let heldKeys=[],padDirection=null,swipe=null,avatar=null,lastSpriteFrame=-1;
-let viewport={w:1,h:1,dpr:1},raf=0,storageKey='';
+let viewport={w:1,h:1,dpr:1},raf=0,storageKey='',stoneEvent=null;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const touchUI=matchMedia('(hover: none) and (pointer: coarse)');
 const godNames=Object.fromEntries(Object.entries(REGION_THEMES).map(([id,theme])=>[id,theme.name]));
@@ -43,7 +45,7 @@ const aiNames=Object.fromEntries(Object.entries(REGION_THEMES).map(([id,theme])=
 const tutorial=document.createElement('dialog');tutorial.className='explore-tutorial';tutorial.setAttribute('aria-labelledby','tutorial-title');
 tutorial.innerHTML='<div class="tutorial-layout"><div class="tutorial-portrait" aria-hidden="true"></div><div class="tutorial-body"><span class="eyebrow">FIRST ENCOUNTER</span><h2 id="tutorial-title">우리의 첫걸음</h2><h3 id="tutorial-speaker"></h3><p id="tutorial-welcome"></p><div class="tutorial-controls"><strong>이동 방법</strong><p id="tutorial-movement"></p><p>나무와 돌은 지나갈 수 없어. 열린 길 끝으로 가면 다음 초원으로 이어져.</p></div><small class="landscape-tip">휴대폰을 가로로 돌려도 같은 위치에서 계속 탐험할 수 있어.</small></div></div><form method="dialog"><button class="pixel-button">탐험 시작</button></form>';
 game.append(tutorial);
-function modalOpen(){return settings.open||tutorial.open;}
+function modalOpen(){return settings.open||tutorial.open||Boolean(stoneEvent?.isOpen);}
 function syncInputHelp(){
  tutorial.querySelector('#tutorial-movement').textContent=touchUI.matches?'화면을 원하는 방향으로 스와이프해 봐. 오른쪽 아래 방향패드를 누르고 있으면 계속 걸을 수 있어.':'방향키 또는 W·A·S·D로 걸어봐. 키를 누르고 있으면 계속 움직일 수 있어.';
  ui.querySelector('.explore-help').firstChild.textContent=touchUI.matches?'스와이프 · 방향패드로 이동':'방향키 · WASD로 이동';
@@ -106,11 +108,12 @@ async function start(){
   const region=await loadRegion(cx,cy);chunk=region.chunk;art=tiles(chunk.faction);ui.dataset.faction=chunk.faction;
   const theme=REGION_THEMES[chunk.faction];for(const [key,value]of Object.entries({accent:theme.accent,panel:theme.panel,border:theme.border,text:theme.text,backdrop:theme.backdrop}))game.style.setProperty('--meadow-'+key,value);game.style.setProperty('--accent',theme.accent);
   player=valid&&walkable(chunk,saved.x,saved.y)?{x:saved.x,y:saved.y}:{x:Math.floor(MAP_WIDTH/2),y:Math.floor(MAP_HEIGHT/2)};
+  if(blocksNoxStone(chunk.faction,cx,cy,player.x,player.y))player={x:17,y:12};
   avatar?.remove();avatar=document.createElement('faction-sprite');avatar.setAttribute('faction',chunk.faction);avatar.setAttribute('still','');avatar.className='explore-avatar-source';avatar.setAttribute('aria-hidden','true');game.append(avatar);lastSpriteFrame=-1;
   entry.hidden=true;launch.hidden=true;
   document.querySelector('#settings-name').textContent=godNames[chunk.faction]+' · '+aiNames[chunk.faction];
   active=true;motion=null;game.classList.add('exploring');ui.hidden=false;status.textContent='';clearHeld();notice('길을 따라 나의 진영을 둘러보세요.');
-  updateHud(region);resize();canvas.focus();cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);save();
+  updateHud(region);resize();canvas.focus();cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);save();stoneEvent?.refresh();
  }catch(error){entry.hidden=false;entry.querySelector('h1').textContent='초원에 들어가지 못했어요';launch.hidden=false;if(error.status===401||error.status===403)showLogin(error.message);else status.textContent=error.message;}finally{
   busy=false;launch.disabled=false;
   if(active){let seen=false;try{seen=localStorage.getItem('gggc-explorer-tutorial-v1:'+user.id)==='seen';}catch{}if(!seen)showTutorial();}
@@ -130,6 +133,7 @@ async function step(direction,now){
   }catch(error){notice(error.message);if(error.status===401||error.status===403)showLogin(error.message);}finally{busy=false;ui.querySelector('.explore-loading').hidden=true;}
   return;
  }
+ if(blocksNoxStone(chunk.faction,cx,cy,x,y)){notice('보랏빛 돌이 있어요. 옆에서 조사하기를 눌러보세요.');return;}
  if(!walkable(chunk,x,y)){notice(chunk.objects[y*MAP_WIDTH+x]===1?'나무가 있어 지나갈 수 없어요.':'돌이 있어 지나갈 수 없어요.');return;}
  notice('');motion={from:{...player},to:{x,y},started:now,duration:reduced.matches?1:150};
 }
@@ -151,7 +155,13 @@ function draw(time){
  }
  const spriteFrame=reduced.matches?0:Math.floor(time/90)%32;if(avatar?.ready&&spriteFrame!==lastSpriteFrame){avatar.setFrame(spriteFrame);lastSpriteFrame=spriteFrame;}
  for(let y=fromY;y<=toY;y++){
-  for(let x=fromX;x<=toX;x++){const object=chunk.objects[y*chunk.width+x],px=offsetX+x*tile,py=offsetY+y*tile;if(object===1)ctx.drawImage(art.tree,px,py-16*scale,tile,48*scale);else if(object===2)ctx.drawImage(art.rock,px,py,tile,tile);}
+  for(let x=fromX;x<=toX;x++){const object=chunk.objects[y*chunk.width+x],px=offsetX+x*tile,py=offsetY+y*tile;if(object===1)ctx.drawImage(art.tree,px,py-16*scale,tile,48*scale);else if(object===2)ctx.drawImage(art.rock,px,py,tile,tile);
+   if(blocksNoxStone(chunk.faction,cx,cy,x,y)){
+    ctx.fillStyle='#d79cff33';ctx.fillRect(px+3*scale,py+17*scale,26*scale,13*scale);
+    ctx.drawImage(art.rock,px,py,tile,tile);ctx.fillStyle='#c78de7';ctx.fillRect(px+12*scale,py+12*scale,6*scale,3*scale);ctx.fillStyle='#edc8ff';ctx.fillRect(px+10*scale,py+17*scale,3*scale,2*scale);ctx.fillRect(px+20*scale,py+19*scale,2*scale,5*scale);
+    if(!reduced.matches&&Math.floor(time/450)%2===0){ctx.fillStyle='#f3d4ff';ctx.fillRect(px+7*scale,py+7*scale,2*scale,2*scale);ctx.fillRect(px+23*scale,py+12*scale,2*scale,2*scale);}
+   }
+}
   if(y===Math.floor(position.y)){
    const px=offsetX+(position.x+.5)*tile,py=offsetY+(position.y+1)*tile,bob=motion&&!reduced.matches?Math.sin(t*Math.PI)*2*scale:0;
    ctx.fillStyle='#1b392d55';ctx.beginPath();ctx.ellipse(px,py-3*scale,9*scale,3*scale,0,0,Math.PI*2);ctx.fill();
@@ -165,7 +175,7 @@ function loop(now){
  if(!document.hidden){
   if(motion&&now-motion.started>=motion.duration){player={...motion.to};motion=null;if(now-lastSave>1000){save();lastSave=now;}}
   if(!modalOpen()){const direction=padDirection||heldKeys[heldKeys.length-1];if(direction&&now-lastMove>165)step(direction,now);}
-  draw(now);
+  draw(now);stoneEvent?.update();
  }
  raf=requestAnimationFrame(loop);
 }
@@ -190,5 +200,12 @@ window.addEventListener('pagehide',()=>{save();clearHeld();cancelAnimationFrame(
 settings.addEventListener('close',()=>{clearHeld();if(active)canvas.focus();});settings.addEventListener('toggle',clearHeld);
 launch.onclick=start;ui.querySelector('#show-explore-help').onclick=showTutorial;
 window.addEventListener('orientationchange',()=>{clearHeld();if(active)requestAnimationFrame(resize);});
+stoneEvent=createStoneEvent({game,ui,canvas,
+ getState:()=>({active,busy,chunk,cx,cy,player,motion,user}),
+ blocked:()=>busy||settings.open||tutorial.open,
+ pause:()=>{clearHeld();if(motion){player={...motion.to};motion=null;save();}},
+ resume:()=>{clearHeld();if(active)canvas.focus();},
+ notice
+});
 window.GGGCExplore={start,get active(){return active;}};
 start();
