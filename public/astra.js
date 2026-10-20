@@ -2,19 +2,34 @@
 (() => {
   'use strict';
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  const frames = [{x:0,y:0,anchor:334,foot:602},{x:627,y:0,anchor:324,foot:602},{x:0,y:627,anchor:334,foot:585},{x:627,y:627,anchor:324,foot:585}];
+  const sheets = {"serin": {"width": 627, "height": 627, "scale": 0.313059, "frames": [{"x": 0, "y": 0, "anchor": 334, "foot": 579}, {"x": 627, "y": 0, "anchor": 291, "foot": 579}, {"x": 0, "y": 627, "anchor": 334, "foot": 552}, {"x": 627, "y": 627, "anchor": 296, "foot": 552}]}, "lumi": {"width": 627, "height": 627, "scale": 0.330813, "frames": [{"x": 0, "y": 0, "anchor": 319, "foot": 569}, {"x": 627, "y": 0, "anchor": 318, "foot": 569}, {"x": 0, "y": 627, "anchor": 320, "foot": 569}, {"x": 627, "y": 627, "anchor": 320, "foot": 569}]}, "nox": {"width": 627, "height": 627, "scale": 0.342466, "frames": [{"x": 0, "y": 0, "anchor": 330, "foot": 576}, {"x": 627, "y": 0, "anchor": 300, "foot": 576}, {"x": 0, "y": 627, "anchor": 334, "foot": 571}, {"x": 627, "y": 627, "anchor": 293, "foot": 571}]}, "astra": {"width": 627, "height": 627, "scale": 0.32, "frames": [{"x": 0, "y": 0, "anchor": 334, "foot": 602}, {"x": 627, "y": 0, "anchor": 324, "foot": 602}, {"x": 0, "y": 627, "anchor": 334, "foot": 585}, {"x": 627, "y": 627, "anchor": 324, "foot": 585}]}};
+  const names = {astra:'아스트라',serin:'세린',lumi:'루미',nox:'녹스'};
   const durations = [1500,600,140,600];
-  const image = new Image();
-  image.src = new URL('assets/astra-idle-v1.webp', document.currentScript.src).href;
-  const loaded = image.decode();
-  loaded.catch(() => {});
+  const cache = new Map();
+  const scriptURL = document.currentScript.src;
+  function loadSheet(id) {
+    if(!cache.has(id)) {
+      const image=new Image();
+      image.src=new URL(`assets/${id}-idle-v1.webp`,scriptURL).href;
+      const ready=image.decode();ready.catch(()=>{});
+      cache.set(id,{image,ready});
+    }
+    return cache.get(id);
+  }
+  const labFaction = new URLSearchParams(location.search).get('faction');
+  if(document.querySelector('#lab-sprite') && names[labFaction]) {
+    document.querySelectorAll('astra-sprite').forEach(s=>s.setAttribute('faction',labFaction));
+  }
   class AstraSprite extends HTMLElement {
     connectedCallback() {
       if(this.canvas) return;
+      this.faction=names[this.getAttribute('faction')]?this.getAttribute('faction'):'astra';
+      this.sheet=sheets[this.faction];
+      const {image,ready}=loadSheet(this.faction);this.image=image;
       this.innerHTML = '<canvas width="384" height="448" aria-hidden="true"></canvas>';
       this.canvas = this.querySelector('canvas');
       this.setAttribute('role','img');
-      this.setAttribute('aria-label','아스트라가 숨을 쉬고 눈을 깜빡이는 도트 애니메이션');
+      this.setAttribute('aria-label',`${names[this.faction]} · 숨쉬기와 눈 깜빡임 도트 애니메이션`);
       this.ctx = this.canvas.getContext('2d');
       this.frame = Number(this.getAttribute('frame') || 0);
       this.speed = 1;
@@ -26,18 +41,18 @@
       reduced.addEventListener('change',this.onMotion);
       this.observer = new IntersectionObserver(entries => {this.visible = entries[0].isIntersecting; this.schedule();});
       this.observer.observe(this);
-      loaded.then(() => {this.ready=true; this.draw(); this.schedule();}).catch(() => {
+      ready.then(() => {this.ready=true; this.draw(); this.schedule();}).catch(() => {
         this.textContent='캐릭터를 불러오지 못했어요.';
         this.setAttribute('aria-label','캐릭터 이미지를 불러오지 못했습니다');
       });
     }
     draw() {
       if(!this.ready) return;
-      const c=this.ctx,f=frames[this.frame],scale=.32;
+      const c=this.ctx,f=this.sheet.frames[this.frame],scale=this.sheet.scale;
       c.setTransform(2,0,0,2,0,0);
       c.clearRect(0,0,192,224);
       c.imageSmoothingEnabled=false;
-      c.drawImage(image,f.x,f.y,627,627,96-f.anchor*scale,212-f.foot*scale,627*scale,627*scale);
+      c.drawImage(this.image,f.x,f.y,this.sheet.width,this.sheet.height,96-f.anchor*scale,212-f.foot*scale,this.sheet.width*scale,this.sheet.height*scale);
       this.dataset.frame=String(this.frame+1);
       this.dispatchEvent(new CustomEvent('spriteframe',{detail:{frame:this.frame}}));
     }
@@ -56,6 +71,7 @@
     }
   }
   customElements.define('astra-sprite',AstraSprite);
+  customElements.define('faction-sprite',class extends AstraSprite {});
 
   const widget=document.querySelector('#astra-companion');
   if(widget) {
@@ -77,6 +93,9 @@
   }
   const lab=document.querySelector('#lab-sprite');
   if(lab) {
+    const chooser=document.querySelector('#lab-faction');
+    chooser.value=names[labFaction]?labFaction:'astra';
+    chooser.onchange=()=>{location.search=new URLSearchParams({faction:chooser.value}).toString();};
     const play=document.querySelector('#lab-play');
     const update=()=>{play.textContent=lab.playing?'Ⅱ 일시정지':'▶ 재생';play.setAttribute('aria-pressed',String(lab.playing));};
     play.onclick=()=>{lab.setPlaying(!lab.playing);update();};

@@ -4,7 +4,7 @@
 
 - File: public/assets/astra-idle-v1.webp
 - Built-in image generation was used with the user-provided Astra reference sheet.
-- RGBA PNG, 1254 × 1254, exact 2 × 2 layout; each source cell is 627 × 627.
+- RGBA WebP, 1254 × 1254, exact 2 × 2 layout; each source cell is 627 × 627.
 - Original generated alpha is preserved. No background reconstruction or palette edits.
 - Frames: neutral, inhale, eyes closed, neutral settling.
 - One shared image is decoded and reused by the page's sprite elements.
@@ -26,4 +26,4 @@ Animation pauses offscreen and when the page is hidden, and initializes paused f
 - / : community banner and bottom-right pilot companion
 - /sprite-lab.html : larger animation and frame comparison controls
 
-Only Astra is animated in this pilot. This does not alter the selected faction, authentication, or inventory. The floating pilot is explicitly labeled as a test. The permanent faction decision for real accounts remains a separate planned server feature.
+All four commanders are now animated; see `docs/commander-animation.md`. This does not alter the selected faction, authentication, or inventory. The floating pilot is explicitly labeled as a test. The permanent faction decision for real accounts remains a separate planned server feature.

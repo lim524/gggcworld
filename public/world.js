@@ -65,7 +65,7 @@
     if(night)rect(0,0,480,300,'#18324835');
   }
   const travelers=root.querySelector('.world-travelers');
-  travelers.innerHTML=factions.map(f=>`<button class="world-character" data-world-faction="${f.id}" style="--x:${f.x}%;--y:${f.y}%;--faction:${f.color}" aria-label="${f.ai} 진영 ${f.name}, ${f.place}" aria-pressed="${f.id==='astra'}"><span class="character-art">${f.id==='astra'?'<astra-sprite></astra-sprite>':`<img src="assets/${f.id}-sprite.webp" alt="" draggable="false">`}</span><span class="character-name">${f.name}</span></button>`).join('');
+  travelers.innerHTML=factions.map(f=>`<button class="world-character" data-world-faction="${f.id}" style="--x:${f.x}%;--y:${f.y}%;--faction:${f.color}" aria-label="${f.ai} 진영 ${f.name}, ${f.place}" aria-pressed="${f.id==='astra'}"><span class="character-art"><faction-sprite faction="${f.id}"></faction-sprite></span><span class="character-name">${f.name}</span></button>`).join('');
   function select(id) {
     selected=factions.find(f=>f.id===id)||factions[0];
     root.querySelectorAll('[data-world-faction]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.worldFaction===selected.id)));
@@ -82,7 +82,7 @@
   };
   function syncMotion() {
     root.classList.toggle('world-paused',paused||document.hidden);
-    root.querySelector('astra-sprite')?.setPlaying(!paused);
+    root.querySelectorAll('faction-sprite').forEach(sprite=>sprite.setPlaying(!paused));
     const button=root.querySelector('[data-world-motion]');
     button.textContent=paused?'▶ 동작 재생':'Ⅱ 동작 멈춤';button.setAttribute('aria-pressed',String(!paused));
   }
