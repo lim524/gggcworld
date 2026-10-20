@@ -19,7 +19,7 @@
   function close(){menu.hidden=true;toggle.setAttribute('aria-expanded','false');}
   toggle.onclick=()=>{menu.hidden=!menu.hidden;toggle.setAttribute('aria-expanded',String(!menu.hidden));};
   collapse.onclick=()=>{const hidden=widget.classList.toggle('is-collapsed');collapse.textContent=hidden?'✦ 수호신 펼치기':'접기';toggle.querySelector('faction-sprite')?.setPlaying(!hidden&&!matchMedia('(prefers-reduced-motion: reduce)').matches);close();};
-  widget.querySelector('[data-companion-world]').onclick=()=>{close();if(!document.querySelector('#world')){location.assign('/#world');return;}document.querySelector('#world').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});document.querySelector(`[data-world-faction="${current}"]`)?.click();};
+  widget.querySelector('[data-companion-world]').textContent='✦ 모험';widget.querySelector('[data-companion-world]').onclick=()=>{close();location.assign('/adventure');};
   widget.querySelector('[data-companion-board]').onclick=()=>{close();if(!document.querySelector('.board')){location.assign('/?channel='+current+'#board');return;}document.querySelector(`#faction-tabs [data-channel="${current}"]`)?.click();document.querySelector('.board').scrollIntoView({behavior:'instant'});};
   document.addEventListener('click',e=>{if(e.target.closest('[data-pick]'))refresh();if(!widget.contains(e.target))close();});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});

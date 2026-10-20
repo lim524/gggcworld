@@ -17,8 +17,8 @@ function syncAccount(user) {
   }
   renderProfile();
   const button = document.querySelector('.top-login');
-  button.textContent = user ? '내 계정 →' : '로그인 →';
-  document.querySelector('.full-button').textContent = user?.profile ? '나의 진영 확인하기 →' : '나의 진영 선택하기 →';
+  button.textContent = user ? '내 계정 ' : '로그인 ';
+  document.querySelector('.full-button').textContent = user?.profile ? '나의 진영 확인하기 ' : '나의 진영 선택하기 ';
   document.querySelector('.full-button').nextElementSibling.textContent = user ? '프로필과 확정한 진영은 계정에 저장됩니다.' : '게스트의 진영 선택은 이 기기에만 저장됩니다.';
   window.dispatchEvent(new Event('gggc:factionchange'));
   window.dispatchEvent(new Event('gggc:accountchange'));
@@ -82,7 +82,7 @@ async function refreshAccount() {
     const config = await accountRequest('/api/config'); account.enabled = config.loginEnabled;
     if (account.enabled) { const data = await accountRequest('/api/me'); syncAccount(data.user); }
   } catch { account.enabled = false; }
-  finally { account.loading = false; document.querySelector('.top-login').textContent = account.user ? '내 계정 →' : '로그인 →'; }
+  finally { account.loading = false; document.querySelector('.top-login').textContent = account.user ? '내 계정 ' : '로그인 '; }
   const params = new URLSearchParams(location.search);
   if (params.has('login')) {
     if (params.get('login') === 'error') toast('로그인이 취소되었거나 완료되지 않았어요. 다시 시도해주세요.');

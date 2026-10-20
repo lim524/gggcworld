@@ -1,5 +1,7 @@
 # GGGC WORLD
 
+지도에 8프레임 환경 효과와 밤 팔레트를 추가했습니다. 홈의 모험 버튼과 수호신 메뉴에서 8곳을 탐험할 수 있습니다. 탐험 노트는 현재 기기에 저장됩니다. [지도·모험 안내](docs/map-exploration.md)를 참고하세요.
+
 게시글·댓글·추천을 D1에 저장하는 실제 게시판과 별도 글쓰기/상세 페이지를 연결했습니다. 기존 운영 DB에는 `migrations/0003_community.sql`을 한 번 적용해야 합니다. 자세한 내용은 [게시판 연결 안내](docs/community-setup.md)를 참고하세요.
 
 GPT · Gemini · Grok · Claude 네 진영이 모이는 커뮤니티입니다.

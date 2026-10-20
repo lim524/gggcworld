@@ -12,7 +12,10 @@
   ];
   const canvas=root.querySelector('canvas'),c=canvas.getContext('2d');
   const viewport=root.querySelector('.world-stage'),map=root.querySelector('.world-map');
-  let night=false,paused=reduced.matches,selected=factions[0],zoom=1;
+  const effects=document.createElement('canvas');effects.className='world-effects';effects.width=400;effects.height=250;effects.setAttribute('aria-hidden','true');map.insertBefore(effects,map.querySelector('.world-travelers'));const ec=effects.getContext('2d');
+  let night=false,paused=reduced.matches,selected=factions[0],zoom=1,offscreen=false,frame=0,raf=0,lastTime=0;
+  function paintEffects(){window.GGGCWorldEffects?.paint(ec,frame,night);root.dataset.effectFrame=String(frame+1);}
+  function animate(time){raf=0;if(paused||offscreen||document.hidden)return;if(time-lastTime>=160){frame=(frame+1)%8;paintEffects();lastTime=time;}raf=requestAnimationFrame(animate);}
   const image=new Image();
   image.src=new URL('assets/world-archipelago-v1.webp',document.currentScript.src).href;
   function draw(){
@@ -21,8 +24,9 @@
     if(image.complete&&image.naturalWidth){
       c.imageSmoothingEnabled=false;
       c.drawImage(image,0,0,canvas.width,canvas.height);
-      if(night){c.fillStyle='#101c4b80';c.fillRect(0,0,canvas.width,canvas.height);}
+      if(night){c.fillStyle='#07172c';c.globalAlpha=.3;c.fillRect(0,0,canvas.width,canvas.height);c.globalAlpha=1;const shade=c.createLinearGradient(0,0,0,canvas.height);shade.addColorStop(0,'#0b183c24');shade.addColorStop(1,'#0a183d10');c.fillStyle=shade;c.fillRect(0,0,canvas.width,canvas.height);}
     }
+    paintEffects();
   }
   image.decode().then(()=>{
     canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;
@@ -37,7 +41,8 @@
     root.querySelector('.world-speaker').textContent=`${selected.name} · ${selected.god}`;
     root.querySelector('.world-quote').textContent=selected.line;
     root.querySelector('.world-place').textContent=selected.place;
-    root.querySelector('[data-world-visit]').textContent=`${selected.ai} 진영 둘러보기 →`;
+    root.querySelector('[data-world-visit]').textContent=`${selected.ai} 진영 둘러보기`;
+    const adventure=root.querySelector('[data-world-adventure]');if(adventure)adventure.href='/adventure?destination='+selected.id;
     root.style.setProperty('--selected-color',selected.color);
   }
   travelers.addEventListener('click',e=>{const b=e.target.closest('[data-world-faction]');if(b)select(b.dataset.worldFaction);});
@@ -67,8 +72,10 @@
     if(e.key==='ArrowDown'){viewport.scrollTop+=delta;e.preventDefault();}
   });
   function syncMotion(){
-    root.classList.toggle('world-paused',paused||document.hidden);
-    root.querySelectorAll('faction-sprite').forEach(sprite=>sprite.setPlaying(!paused));
+    const stopped=paused||document.hidden||offscreen;
+    root.classList.toggle('world-paused',stopped);
+    root.querySelectorAll('faction-sprite').forEach(sprite=>sprite.setPlaying(!stopped));
+    cancelAnimationFrame(raf);raf=0;if(!stopped)raf=requestAnimationFrame(animate);paintEffects();
     const button=root.querySelector('[data-world-motion]');
     button.textContent=paused?'▶ 동작 재생':'Ⅱ 동작 멈춤';button.setAttribute('aria-pressed',String(!paused));
   }
@@ -79,7 +86,8 @@
   };
   reduced.addEventListener('change',()=>{paused=reduced.matches;syncMotion();});
   document.addEventListener('visibilitychange',syncMotion);
-  const observer=new IntersectionObserver(entries=>root.classList.toggle('world-offscreen',!entries[0].isIntersecting));
+  const observer=new IntersectionObserver(entries=>{offscreen=!entries[0].isIntersecting;root.classList.toggle('world-offscreen',offscreen);syncMotion();});
   observer.observe(root);
   select('astra');setZoom(1);draw();syncMotion();
+  window.GGGCWorld={map,select,isNight:()=>night};
 })();
