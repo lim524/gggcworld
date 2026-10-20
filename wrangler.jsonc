@@ -3,6 +3,22 @@
   "name": "gggcworld",
   "main": "src/worker.js",
   "compatibility_date": "2026-10-20",
-  "compatibility_flags": ["nodejs_compat"],
-  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] }
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "gggcworld",
+      "database_id": "39012837-aab5-4605-8959-83f57bcfa5bf",
+      "migrations_dir": "migrations"
+    }
+  ]
 }
