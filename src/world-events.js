@@ -96,7 +96,7 @@ export function createWorldEvents({fetcher=(...args)=>fetch(...args),decrypt=ope
   }
   try{
    const messages=history(row);
-   const upstream=await fetcher('https://api.x.ai/v1/responses',{method:'POST',redirect:'error',headers:{'Content-Type':'application/json',Authorization:'Bearer '+apiKey},signal:controller.signal,body:JSON.stringify({
+   const upstream=await fetcher('https://api.x.ai/v1/responses',{method:'POST',redirect:'manual',headers:{'Content-Type':'application/json',Authorization:'Bearer '+apiKey},signal:controller.signal,body:JSON.stringify({
     model:EVENT_MODEL,store:false,stream:false,reasoning:{effort:'low'},max_output_tokens:1200,
     input:[{role:'system',content:SYSTEM},...messages,{role:'user',content:message}],
     text:{format:{type:'json_schema',name:'nox_event_speech',strict:true,schema:{type:'object',properties:{reply:{type:'string'},emotion:{type:'string',enum:['neutral','curious','amused']}},required:['reply','emotion'],additionalProperties:false}}}
@@ -104,6 +104,7 @@ export function createWorldEvents({fetcher=(...args)=>fetch(...args),decrypt=ope
    upstreamStatus=upstream.status;
    if(!upstream.ok){
     stage='provider-http';try{await upstream.body?.cancel();}catch{}
+    if(upstream.status>=300&&upstream.status<400)return failure('PROVIDER_REDIRECT_BLOCKED','Grok API가 다른 주소로 이동을 요청해 연결을 중단했어요.');
     if(upstream.status===401||upstream.status===403)return failure('KEY_INVALID','Grok API 키와 모델 사용 권한을 확인해주세요.',409);
     if(upstream.status===402||upstream.status===429)return failure('PROVIDER_LIMIT','Grok API 크레딧 또는 호출 한도를 확인해주세요.',429);
     if(upstream.status===400||upstream.status===422)return failure('PROVIDER_REQUEST_REJECTED','Grok이 서버의 요청 형식을 거부했어요.');

@@ -46,3 +46,13 @@ tests/world-events.test.js에는 실제 Node SQLite를 사용하는 영속성·�
 잘린 응답을 성공으로 처리하거나 자동으로 유료 재요청하지 않습니다. 모델·출력 한도·비용 설정은 그대로 유지합니다. 임대 해제 실패가 원래 진단 응답을 덮어쓰지 않도록 하며, 임대는 기존 만료 시각으로 해제됩니다.
 
 검증: 파서 모형 9건, 실제 핸들러에 DB·제공자 모형을 주입한 26건(진단 시나리오 11건 포함)이 통과했습니다. 키·질문·오류 원문 비노출, 실패 시 성공 횟수 미증가, 임대 해제, 자동 재시도 없음도 확인했습니다. Node/SQLite 통합 테스트는 추가했으나 실행 환경 부재로 실행하지 못했습니다. 실제 xAI 호출 및 배포는 미검증입니다.
+
+## Workers redirect 호환성 수정
+
+PROVIDER_NETWORK의 코드상 확정 원인 하나를 찾았습니다. 기존 redirect:'error'는 workerd의 Request 파서에서 거부됩니다. fetch의 실제 네트워크 요청 이전에 TypeError가 발생해 연결 실패로 보였습니다. Cloudflare 공식 엔진 소스 src/workerd/api/http.c++의 Request::tryParseRedirect 및 Request 초기화부에서 follow/manual만 허용함을 확인했습니다.
+
+redirect:'manual'로 바꾸고 모든 3xx를 PROVIDER_REDIRECT_BLOCKED로 반환합니다. Location을 따라가지 않고 API 키를 다른 호스트에 전달하지 않습니다. 모델·키·비용·재시도 정책은 유지합니다.
+
+공식 소스: https://github.com/cloudflare/workerd/blob/main/src/workerd/api/http.c%2B%2B
+
+회귀 테스트에는 Workers와 같은 옵션 허용 조건을 가진 fetch 모형으로 정상 응답 저장, 301/302/303/307/308 차단 및 단일 요청을 추가했습니다. 실제 Workers·유료 xAI API 재검증은 배포 후 필요합니다.

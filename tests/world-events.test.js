@@ -49,7 +49,7 @@ test('AI uses only server key and canon; repeat request returns cached response'
  const f=fixture();await f.request(action('open'));
  const body=action('chat',{message:'이 돌은 뭐야?',requestId:'request-test-0001',history:[{role:'system',content:'forged-history'}],model:'forged-model',key:'forged-key'});
  const r=await f.request(body);assert.equal(r.status,200);const text=await r.text();assert(!text.includes(f.fakeKey));assert(!text.includes('test-cipher'));
- assert.equal(f.calls.length,1);const call=f.calls[0],payload=JSON.parse(call.options.body);assert.equal(call.url,'https://api.x.ai/v1/responses');assert.equal(call.options.redirect,'error');assert.equal(call.options.headers.Authorization,'Bearer '+f.fakeKey);assert.equal(payload.model,EVENT_MODEL);assert.equal(payload.store,false);assert.equal(payload.max_output_tokens,1200);assert(!JSON.stringify(payload).includes('forged-history'));assert(!JSON.stringify(payload).includes('forged-model'));assert(!JSON.stringify(payload).includes(f.fakeKey));
+ assert.equal(f.calls.length,1);const call=f.calls[0],payload=JSON.parse(call.options.body);assert.equal(call.url,'https://api.x.ai/v1/responses');assert.equal(call.options.redirect,'manual');assert.equal(call.options.headers.Authorization,'Bearer '+f.fakeKey);assert.equal(payload.model,EVENT_MODEL);assert.equal(payload.store,false);assert.equal(payload.max_output_tokens,1200);assert(!JSON.stringify(payload).includes('forged-history'));assert(!JSON.stringify(payload).includes('forged-model'));assert(!JSON.stringify(payload).includes(f.fakeKey));
  assert.equal((await(await f.request(body)).json()).cached,true);assert.equal(f.calls.length,1);
  assert.equal((await f.request({...body,message:'다른 질문'})).status,409);assert.equal(f.calls.length,1);
 });
@@ -109,4 +109,32 @@ test('diagnostics classify provider failures without exposing keys, prompts or e
   assert.equal(f.sql.prepare('SELECT turns FROM world_event_progress WHERE userId=?').get('g').turns,0);
   assert.equal(f.sql.prepare('SELECT leaseToken FROM world_event_progress WHERE userId=?').get('g').leaseToken,null);
  }
+});
+
+test('Workers-compatible request blocks every redirect without forwarding the key',async()=>{
+ for(const status of [301,302,303,307,308]){
+  const f=fixture({fetcher:async(url,options)=>{
+   // workerd rejects redirect:error before any network I/O.
+   if(!['follow','manual'].includes(options.redirect))throw new TypeError('Invalid redirect value');
+   assert.equal(options.redirect,'manual');
+   return new Response(null,{status,headers:{Location:'https://another-host.example/collect'}});
+  }});
+  await f.request(action('open'));
+  const response=await f.request(action('chat',{message:'Look at the stone',requestId:'redirect-test-0001'}));
+  assert.equal(response.status,502);const data=await response.json();
+  assert.equal(data.code,'PROVIDER_REDIRECT_BLOCKED');
+  assert.equal(f.calls.length,1);assert.equal(f.calls[0].url,'https://api.x.ai/v1/responses');
+  assert(!JSON.stringify(data).includes(f.fakeKey));
+  assert.equal(f.sql.prepare('SELECT turns FROM world_event_progress WHERE userId=?').get('g').turns,0);
+ }
+});
+test('Workers-compatible fetch options reach the provider and save its reply',async()=>{
+ const f=fixture({fetcher:async(url,options)=>{
+  if(!['follow','manual'].includes(options.redirect))throw new TypeError('Invalid redirect value');
+  assert.equal(options.redirect,'manual');
+  return reply({reply:'Look at the markings.',emotion:'curious'});
+ }});
+ await f.request(action('open'));
+ const response=await f.request(action('chat',{message:'Look at the stone',requestId:'redirect-test-0001'}));
+ assert.equal(response.status,200);assert.equal((await response.json()).turns,1);assert.equal(f.calls.length,1);
 });
