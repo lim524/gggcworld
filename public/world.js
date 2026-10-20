@@ -3,6 +3,7 @@
   'use strict';
   const root=document.querySelector('#world');
   if(!root)return;
+  const preview=root.classList.contains('landing-world');
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   const factions=[
     {id:'astra',name:'아스트라',god:'지혜와 창조의 신',ai:'GPT',place:'지혜의 숲',line:'잠깐 쉬어 가요. 새로운 이야기는 여기서 시작해요.',x:27.2,y:23.3,color:'#168653'},
@@ -34,10 +35,12 @@
     root.dataset.map='ready';draw();
   }).catch(()=>{root.querySelector('.world-map-status').textContent='지도를 불러오지 못했어요. 새로고침해 주세요.';});
   const travelers=root.querySelector('.world-travelers');
-  travelers.innerHTML=factions.map(f=>`<button class="world-character" data-world-faction="${f.id}" style="--x:${f.x}%;--y:${f.y}%;--faction:${f.color}" aria-label="${f.ai} 진영 ${f.name}, ${f.god}, ${f.place}" aria-pressed="${f.id==='astra'}"><span class="character-art"><faction-sprite faction="${f.id}"></faction-sprite></span><span class="character-name">${f.ai} · ${f.name}</span></button>`).join('');
+  if(preview)travelers.setAttribute('aria-label','네 수호신');
+  travelers.innerHTML=preview?factions.map(f=>`<span class="world-character" style="--x:${f.x}%;--y:${f.y}%;--faction:${f.color}" role="img" aria-label="${f.name} · ${f.ai}"><span class="character-art" aria-hidden="true"><faction-sprite faction="${f.id}"></faction-sprite></span><span class="character-name">${f.name}</span></span>`).join(''):factions.map(f=>`<button class="world-character" data-world-faction="${f.id}" style="--x:${f.x}%;--y:${f.y}%;--faction:${f.color}" aria-label="${f.ai} 진영 ${f.name}, ${f.god}, ${f.place}" aria-pressed="${f.id==='astra'}"><span class="character-art"><faction-sprite faction="${f.id}"></faction-sprite></span><span class="character-name">${f.ai} · ${f.name}</span></button>`).join('');
   function select(id){
     selected=factions.find(f=>f.id===id)||factions[0];
     root.querySelectorAll('[data-world-faction]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.worldFaction===selected.id)));
+    if(preview)return;
     root.querySelector('.world-speaker').textContent=`${selected.name} · ${selected.god}`;
     root.querySelector('.world-quote').textContent=selected.line;
     root.querySelector('.world-place').textContent=selected.place;
@@ -46,7 +49,8 @@
     root.style.setProperty('--selected-color',selected.color);
   }
   travelers.addEventListener('click',e=>{const b=e.target.closest('[data-world-faction]');if(b)select(b.dataset.worldFaction);});
-  root.querySelector('[data-world-visit]').onclick=()=>{
+  const visit=root.querySelector('[data-world-visit]');
+  if(visit)visit.onclick=()=>{
     document.querySelector(`#faction-tabs [data-channel="${selected.id}"]`)?.click();
     document.querySelector('.board').scrollIntoView({behavior:reduced.matches?'instant':'smooth',block:'start'});
   };
@@ -57,13 +61,16 @@
     map.style.width=(zoom*100)+'%';
     viewport.scrollLeft=centerX*zoom-viewport.clientWidth/2;
     viewport.scrollTop=centerY*zoom-viewport.clientHeight/2;
+    if(preview)return;
     root.querySelector('[data-world-zoom-out]').disabled=zoom===1;
     root.querySelector('[data-world-zoom-in]').disabled=zoom===3;
     root.querySelector('.world-zoom-status').textContent=Math.round(zoom*100)+'%';
   }
-  root.querySelector('[data-world-zoom-in]').onclick=()=>setZoom(zoom+.5);
-  root.querySelector('[data-world-zoom-out]').onclick=()=>setZoom(zoom-.5);
-  root.querySelector('[data-world-zoom-reset]').onclick=()=>setZoom(1);
+  if(!preview){
+    root.querySelector('[data-world-zoom-in]').onclick=()=>setZoom(zoom+.5);
+    root.querySelector('[data-world-zoom-out]').onclick=()=>setZoom(zoom-.5);
+    root.querySelector('[data-world-zoom-reset]').onclick=()=>setZoom(1);
+  }
   viewport.addEventListener('keydown',e=>{
     const delta=60;
     if(e.key==='ArrowLeft'){viewport.scrollLeft-=delta;e.preventDefault();}

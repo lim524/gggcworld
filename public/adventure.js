@@ -17,7 +17,7 @@
   let found=Array.isArray(record.found)?record.found.filter(id=>locations.some(p=>p.id===id)):[];
   let current=locations.find(p=>p.id===record.current)||locations[4],selected=locations.find(p=>p.id===new URLSearchParams(location.search).get('destination'))||locations[0],traveling=false,step=0,travelTimer=0;
   const markers=document.createElement('div');markers.className='adventure-markers';markers.setAttribute('role','group');markers.setAttribute('aria-label','탐험 장소 선택');
-  markers.innerHTML=locations.map(p=>`<button data-destination="${p.id}" style="--x:${p.x}%;--y:${p.y}%;--destination:${p.color}" aria-label="${p.name} 선택"><span aria-hidden="true">◇</span><small>${p.name}</small></button>`).join('');map.append(markers);
+  markers.innerHTML=locations.map(p=>`<button data-destination="${p.id}" style="--x:${p.x}%;--y:${p.y}%;--destination:${p.color}" aria-label="${p.name} 선택"><span aria-hidden="true"></span><small>${p.name}</small></button>`).join('');map.append(markers);
   const traveler=document.createElement('div');traveler.className='adventure-traveler';traveler.setAttribute('aria-hidden','true');map.append(traveler);
   const route=document.createElementNS('http://www.w3.org/2000/svg','svg');route.classList.add('adventure-route');route.setAttribute('viewBox','0 0 100 100');route.setAttribute('preserveAspectRatio','none');route.setAttribute('aria-hidden','true');map.append(route);
   function avatar(){let id='astra';try{id=JSON.parse(localStorage.getItem('gggc-profile-v1'))?.faction||id;}catch{}if(!locations.slice(0,4).some(p=>p.id===id))id='astra';traveler.innerHTML=`<faction-sprite faction="${id}"></faction-sprite><span>나의 여행자</span>`;}

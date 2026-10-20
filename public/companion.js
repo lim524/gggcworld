@@ -13,13 +13,13 @@
     if(!names[id])id='astra';current=id;
     toggle.innerHTML=`<faction-sprite faction="${id}"></faction-sprite>`+`<span class="companion-label">${names[id][0]} · 메뉴</span>`;
     toggle.setAttribute('aria-label',`${names[id][0]} 수호신 메뉴`);
-    widget.querySelector('a').href=`sprite-lab.html?faction=${id}`;
+    widget.querySelector('a[href*="sprite-lab"]').href=`sprite-lab.html?faction=${id}`;
     widget.querySelector('strong').textContent=`${names[id][0]} · ${gods[id]}`;
   }
   function close(){menu.hidden=true;toggle.setAttribute('aria-expanded','false');}
   toggle.onclick=()=>{menu.hidden=!menu.hidden;toggle.setAttribute('aria-expanded',String(!menu.hidden));};
   collapse.onclick=()=>{const hidden=widget.classList.toggle('is-collapsed');collapse.textContent=hidden?'✦ 수호신 펼치기':'접기';toggle.querySelector('faction-sprite')?.setPlaying(!hidden&&!matchMedia('(prefers-reduced-motion: reduce)').matches);close();};
-  widget.querySelector('[data-companion-world]').textContent='✦ 모험';widget.querySelector('[data-companion-world]').onclick=()=>{close();location.assign('/adventure');};
+  widget.querySelector('[data-companion-world]').onclick=close;
   widget.querySelector('[data-companion-board]').onclick=()=>{close();if(!document.querySelector('.board')){location.assign('/?channel='+current+'#board');return;}document.querySelector(`#faction-tabs [data-channel="${current}"]`)?.click();document.querySelector('.board').scrollIntoView({behavior:'instant'});};
   document.addEventListener('click',e=>{if(e.target.closest('[data-pick]'))refresh();if(!widget.contains(e.target))close();});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
