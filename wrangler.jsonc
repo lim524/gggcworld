@@ -20,5 +20,9 @@
       "database_id": "39012837-aab5-4605-8959-83f57bcfa5bf",
       "migrations_dir": "migrations"
     }
-  ]
+  ],
+  "keep_vars": true,
+  "vars": {
+    "BETTER_AUTH_URL": "https://gggcworld.limtakwoo9.workers.dev"
+  }
 }
