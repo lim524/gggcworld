@@ -11,10 +11,9 @@
 .guardian-tabs button:hover{background:var(--sage);color:var(--ink)}
 .guardian-tabs i{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 #guardian-panel{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);min-height:610px;outline-offset:-4px}
-.guardian-art{display:flex;align-items:center;justify-content:center;position:relative;isolation:isolate;min-width:0;padding:45px 24px;border-right:1px solid var(--line);background:radial-gradient(ellipse at 50% 65%,color-mix(in srgb,var(--guardian-color) 12%,transparent),transparent 70%)}
-.guardian-art:after{content:'';position:absolute;width:58%;height:25px;bottom:90px;z-index:-1;border-radius:50%;background:color-mix(in srgb,var(--guardian-color) 12%,transparent)}
-.guardian-art figure{margin:0;width:100%;display:flex;align-items:center;flex-direction:column;gap:20px}
-.guardian-art faction-sprite{width:min(100%,350px);filter:drop-shadow(0 14px 12px #00000015)}
+.guardian-art{display:flex;align-items:center;justify-content:center;position:relative;isolation:isolate;min-width:0;padding:24px 18px;border-right:1px solid var(--line);background:radial-gradient(ellipse at 50% 65%,color-mix(in srgb,var(--guardian-color) 12%,transparent),transparent 70%)}
+.guardian-art figure{margin:0;width:100%;display:flex;align-items:center;flex-direction:column;gap:14px}
+.guardian-portrait{display:block;width:100%;height:auto;max-height:660px;object-fit:contain;image-rendering:auto;filter:drop-shadow(0 12px 16px #00000012)}
 .guardian-art figcaption{font-size:10px;color:var(--muted);text-align:center}
 .guardian-story{padding:52px 46px 36px;min-width:0}
 .guardian-eyebrow{font:9px monospace;letter-spacing:3px;color:var(--muted);margin:0 0 23px}
@@ -46,7 +45,7 @@
  .guardian-main{padding:18px 12px 28px}.guardian-breadcrumb{font-size:10px}.guardian-breadcrumb span{font-size:7px;letter-spacing:1px}
  .guardian-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:10px}.guardian-tabs button{font-size:11px;min-height:44px}
  #guardian-panel{grid-template-columns:minmax(0,1fr);min-height:0}.guardian-art{border-right:0;border-bottom:1px solid var(--line);padding:28px 18px 20px}
- .guardian-art faction-sprite{width:min(65vw,235px)}.guardian-art:after{bottom:54px;height:18px;width:130px}.guardian-art figure{gap:6px}
+ .guardian-portrait{width:100%;max-height:460px}.guardian-art figure{gap:10px}
  .guardian-story{padding:28px 22px}.guardian-eyebrow{margin-bottom:18px;font-size:8px}.guardian-story h1{font-size:42px}
  .guardian-story blockquote{font-size:17px}.guardian-intro{font-size:13px}.guardian-facts{margin-top:22px}.guardian-facts>div{grid-template-columns:80px minmax(0,1fr);font-size:11px}
  .guardian-actions{gap:10px}.guardian-primary{width:100%;font-size:12px}.guardian-secondary{justify-content:center;width:100%}

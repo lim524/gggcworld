@@ -35,8 +35,9 @@
   const background=document.getElementById('guardian-background');background.replaceChildren();
   for(const paragraph of g.story){const p=document.createElement('p');p.textContent=paragraph;background.append(p);}
   const art=document.getElementById('guardian-artwork');art.replaceChildren();
-  const sprite=document.createElement('faction-sprite');sprite.setAttribute('faction',g.id);sprite.setAttribute('still','');sprite.setAttribute('aria-hidden','true');
-  const caption=document.createElement('figcaption');caption.textContent=g.name+' · '+g.god;art.append(sprite,caption);
+  const portrait=document.createElement('img');portrait.className='guardian-portrait';portrait.src=g.portrait.src;portrait.alt=g.portrait.alt;
+  portrait.width=g.portrait.width;portrait.height=g.portrait.height;portrait.decoding='async';portrait.fetchPriority='high';
+  const caption=document.createElement('figcaption');caption.textContent=g.name+' · '+g.god;art.append(portrait,caption);
   const board=document.getElementById('guardian-board');board.href='/?channel='+g.id+'#board';board.textContent=g.ai+' 진영 둘러보기';
   document.title=g.name+' · 수호신 소개 · GGGC';
   document.querySelector('meta[name="description"]').setAttribute('content',g.intro);

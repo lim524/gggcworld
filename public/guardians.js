@@ -5,6 +5,7 @@
  const all=[
   {
     "id": "astra",
+    "portrait": {"src": "assets/guardians/astra-portrait-v1.webp", "width": 1024, "height": 1536, "alt": "초록빛 책을 펼쳐 든 은빛 민트 머리의 아스트라 전신 일러스트"},
     "name": "아스트라",
     "ai": "GPT",
     "symbol": "✦",
@@ -33,6 +34,7 @@
   },
   {
     "id": "serin",
+    "portrait": {"src": "assets/guardians/serin-portrait-v1.webp", "width": 1024, "height": 1536, "alt": "검을 아래로 향해 든 붉은 제복과 금발의 세린 전신 일러스트"},
     "name": "세린",
     "ai": "CLAUDE",
     "symbol": "☀",
@@ -61,6 +63,7 @@
   },
   {
     "id": "lumi",
+    "portrait": {"src": "assets/guardians/lumi-portrait-v1.webp", "width": 1024, "height": 1536, "alt": "푸른 별 지팡이를 든 은빛 푸른 머리의 루미 전신 일러스트"},
     "name": "루미",
     "ai": "GEMINI",
     "symbol": "✧",
@@ -89,6 +92,7 @@
   },
   {
     "id": "nox",
+    "portrait": {"src": "assets/guardians/nox-portrait-v1.webp", "width": 1024, "height": 1536, "alt": "보랏빛 별조각을 손 위에 띄운 검정·보라 의상의 녹스 전신 일러스트"},
     "name": "녹스",
     "ai": "GROK",
     "symbol": "☾",
