@@ -9,6 +9,8 @@
  const buttons=[],thumbnails=[];
  function fail(message){playing=false;error.textContent=message;sync();}
  document.getElementById('character-name').textContent=character.name;
+ document.title=character.name+' · 모험가 제작실';
+ canvas.setAttribute('aria-label','모험가 '+character.name+'의 32프레임 도트 대기 동작');
  document.getElementById('character-description').textContent=character.description;
  document.getElementById('character-quote').textContent='“'+character.quote+'”';
  const portrait=document.getElementById('character-portrait');portrait.src=character.portrait.src;portrait.alt=character.portrait.alt;

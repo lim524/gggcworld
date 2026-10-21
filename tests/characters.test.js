@@ -29,15 +29,17 @@ test('each registered character has a transparent portrait and 32 distinct align
  }
 });
 test('blink affects both eyes together while keeping the source eyebrows',async()=>{
- const master=await loadImage(fileURLToPath(new URL('assets/characters/rin/master-v1.webp',root)));
+ for(const character of globalThis.GGGCCharacters.all){
+ const master=await loadImage(fileURLToPath(new URL(character.rigSource,root)));
  const rig=globalThis.GGGCAdventurerMotion,source=createCanvas(192,224),s=source.getContext('2d');s.drawImage(master,0,0);
  for(let i=0;i<32;i++){
-  const pose=rig.pose(i),canvas=createCanvas(192,224),c=canvas.getContext('2d');rig.render(c,master,i);
+  const pose=rig.pose(i),canvas=createCanvas(192,224),c=canvas.getContext('2d');rig.render(c,master,i,character.id);
   assert.equal(pose.blink,i===20||i===21);
-  for(const [x,w]of [[75,15],[98,14]]){
-   const sameEyes=hash(c.getImageData(x,48+pose.headY,w,12).data)===hash(s.getImageData(x,48,w,12).data);
+  for(const [x,y,w,h]of rig.EYES[character.id]){
+   const sameEyes=hash(c.getImageData(x,y+pose.headY,w,h).data)===hash(s.getImageData(x,y,w,h).data);
    assert.equal(sameEyes,!pose.blink,'same blink state for both eyes in frame '+i);
-   assert.equal(hash(c.getImageData(x,42+pose.headY,w,5).data),hash(s.getImageData(x,42,w,5).data),'eyebrows drawn exactly once');
+   assert.equal(hash(c.getImageData(x,y-6+pose.headY,w,5).data),hash(s.getImageData(x,y-6,w,5).data),'eyebrows drawn exactly once');
   }
+ }
  }
 });

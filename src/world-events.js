@@ -1,4 +1,5 @@
 import '../public/guardians.js';
+import {ensureStories,ownStory} from './stories.js';
 import {openKey,VAULT_SCHEMA} from './byok.js';
 import {NOX_STONE,nearNoxStone} from '../public/meadow-event.js';
 const SCHEMA="CREATE TABLE IF NOT EXISTS world_event_progress (\n userId TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,eventId TEXT NOT NULL,\n foundAt INTEGER NOT NULL,inspectedAt INTEGER,transcript TEXT NOT NULL DEFAULT '[]',turns INTEGER NOT NULL DEFAULT 0,\n updatedAt INTEGER NOT NULL,lastAIAt INTEGER NOT NULL DEFAULT 0,leaseToken TEXT,leaseUntil INTEGER NOT NULL DEFAULT 0,lastRequestId TEXT,\n PRIMARY KEY(userId,eventId)\n)";
@@ -57,25 +58,28 @@ export function createWorldEvents({fetcher=(...args)=>fetch(...args),decrypt=ope
   const userId=session.user.id;
   const member=await env.DB.prepare('SELECT faction FROM member_profile WHERE userId=?').bind(userId).first();
   if(member?.faction!=='nox')return error('이 이벤트는 그록 진영의 황혼 초원에서 진행돼요.',403,'FACTION_REQUIRED');
+  await ensureStories(env);
+  let body;if(request.method==='POST'){try{body=await readJSON(request,4096);}catch{return error('입력한 내용이 너무 길어요.',413,'BODY_TOO_LARGE');}}
+  const storyId=request.method==='GET'?new URL(request.url).searchParams.get('storyId'):body?.storyId;
+  const story=await ownStory(env,userId,storyId);
+  if(!story||story.faction!=='nox')return error('진행 중인 나의 이야기를 선택해주세요.',404,'STORY_REQUIRED');
+  const eventKey=story.id+':'+NOX_STONE.id;
   await env.DB.prepare(SCHEMA).run();await env.DB.prepare(VAULT_SCHEMA).run();
-  const find=()=>env.DB.prepare('SELECT * FROM world_event_progress WHERE userId=? AND eventId=?').bind(userId,NOX_STONE.id).first();
+  const find=()=>env.DB.prepare('SELECT * FROM world_event_progress WHERE userId=? AND eventId=?').bind(userId,eventKey).first();
   const key=await env.DB.prepare('SELECT encrypted FROM member_api_key WHERE userId=? AND provider=?').bind(userId,'xai').first();
   let row=await find();if(request.method==='GET')return json(state(row,Boolean(key)));
-  let body;try{body=await readJSON(request,4096);}catch{return error('입력한 내용이 너무 길어요.',413,'BODY_TOO_LARGE');}
   if(!body||!['open','chat','complete'].includes(body.action))return error('이벤트 요청을 확인해주세요.',400,'INVALID_ACTION');
   if(!nearNoxStone(body.cx,body.cy,body.x,body.y))return error('시작 초원의 보랏빛 돌 옆에서 조사해주세요.',403,'NOT_NEAR');
-  const mapTable=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='world_chunk'").first();
-  if(!mapTable)return error('먼저 황혼 초원에 입장해주세요.',409,'REGION_REQUIRED');
-  const region=await env.DB.prepare('SELECT 1 AS found FROM world_chunk WHERE faction=? AND x=? AND y=?').bind('nox',0,0).first();
+  const region=await env.DB.prepare('SELECT 1 AS found FROM adventure_chunk WHERE storyId=? AND x=? AND y=?').bind(story.id,0,0).first();
   if(!region)return error('먼저 황혼 초원에 입장해주세요.',409,'REGION_REQUIRED');
   const now=clock();
   if(body.action==='open'){
-   await env.DB.prepare('INSERT INTO world_event_progress(userId,eventId,foundAt,updatedAt) VALUES (?,?,?,?) ON CONFLICT(userId,eventId) DO NOTHING').bind(userId,NOX_STONE.id,now,now).run();
+   await env.DB.prepare('INSERT INTO world_event_progress(userId,eventId,foundAt,updatedAt) VALUES (?,?,?,?) ON CONFLICT(userId,eventId) DO NOTHING').bind(userId,eventKey,now,now).run();
    return json(state(await find(),Boolean(key)));
   }
   if(!row)return error('먼저 돌을 조사해주세요.',409,'OPEN_REQUIRED');
   if(body.action==='complete'){
-   await env.DB.prepare('UPDATE world_event_progress SET inspectedAt=COALESCE(inspectedAt,?),updatedAt=? WHERE userId=? AND eventId=?').bind(now,now,userId,NOX_STONE.id).run();
+   await env.DB.prepare('UPDATE world_event_progress SET inspectedAt=COALESCE(inspectedAt,?),updatedAt=? WHERE userId=? AND eventId=?').bind(now,now,userId,eventKey).run();
    return json(state(await find(),Boolean(key)));
   }
   const message=typeof body.message==='string'?body.message.trim():'',requestId=body.requestId;
@@ -85,7 +89,7 @@ export function createWorldEvents({fetcher=(...args)=>fetch(...args),decrypt=ope
   if(!key)return error('프로필 설정에서 Grok API 키를 먼저 등록해주세요.',409,'KEY_REQUIRED');
   let apiKey;try{apiKey=await decrypt(env.BETTER_AUTH_SECRET,userId,'xai',key.encrypted);}catch{return error('저장한 키를 열지 못했어요. 프로필에서 키를 다시 등록해주세요.',409,'KEY_REENTER');}
   const token=uuid();
-  const locked=await env.DB.prepare('UPDATE world_event_progress SET leaseToken=?,leaseUntil=?,lastAIAt=? WHERE userId=? AND eventId=? AND turns<? AND turns=? AND (leaseToken IS NULL OR leaseUntil<?) AND lastAIAt<=?').bind(token,now+65000,now,userId,NOX_STONE.id,MAX_EVENT_TURNS,row.turns,now,now-5000).run();
+  const locked=await env.DB.prepare('UPDATE world_event_progress SET leaseToken=?,leaseUntil=?,lastAIAt=? WHERE userId=? AND eventId=? AND turns<? AND turns=? AND (leaseToken IS NULL OR leaseUntil<?) AND lastAIAt<=?').bind(token,now+65000,now,userId,eventKey,MAX_EVENT_TURNS,row.turns,now,now-5000).run();
   if(!locked.meta.changes)return error('답변을 준비하고 있어요. 잠시 후 다시 질문해주세요.',429,'BUSY');
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),45000);
   const onAbort=()=>controller.abort();request.signal?.addEventListener('abort',onAbort,{once:true});
@@ -100,7 +104,7 @@ export function createWorldEvents({fetcher=(...args)=>fetch(...args),decrypt=ope
    const messages=history(row);
    const upstream=await fetcher('https://api.x.ai/v1/responses',{method:'POST',redirect:'manual',headers:{'Content-Type':'application/json',Authorization:'Bearer '+apiKey},signal:controller.signal,body:JSON.stringify({
     model:EVENT_MODEL,store:false,stream:false,reasoning:{effort:'low'},max_output_tokens:1200,
-    input:[{role:'system',content:SYSTEM},...messages,{role:'user',content:message}],
+    input:[{role:'system',content:SYSTEM+'\n현재 이야기는 다른 여행자의 이야기와 독립된 개인 이야기다. 주인공의 외형은 '+(story.characterId==='leo'?'남성 모험가 레오':'여성 모험가 린')+'다.'},...messages,{role:'user',content:message}],
     text:{format:{type:'json_schema',name:'nox_event_speech',strict:true,schema:{type:'object',properties:{reply:{type:'string'},emotion:{type:'string',enum:['neutral','curious','amused']}},required:['reply','emotion'],additionalProperties:false}}}
    })});
    upstreamStatus=upstream.status;
@@ -121,7 +125,7 @@ export function createWorldEvents({fetcher=(...args)=>fetch(...args),decrypt=ope
    if(!speech)speech={reply:'지금 확인할 수 있는 건 희미한 빛과 읽을 수 없는 무늬뿐이야. 함부로 결론 내리진 말자. 이 돌은 여기 두고, 주변 길을 천천히 살펴볼까?',emotion:'curious'};
    const transcript=[...messages,{role:'user',content:message},{role:'assistant',content:speech.reply}].slice(-16);
    stage='save-record';
-   const written=await env.DB.prepare('UPDATE world_event_progress SET transcript=?,turns=turns+1,updatedAt=?,lastRequestId=? WHERE userId=? AND eventId=? AND leaseToken=?').bind(JSON.stringify(transcript),clock(),requestId,userId,NOX_STONE.id,token).run();
+   const written=await env.DB.prepare('UPDATE world_event_progress SET transcript=?,turns=turns+1,updatedAt=?,lastRequestId=? WHERE userId=? AND eventId=? AND leaseToken=?').bind(JSON.stringify(transcript),clock(),requestId,userId,eventKey,token).run();
    if(!written.meta.changes)return error('대화 상태가 바뀌었어요. 이벤트를 다시 열어주세요.',409,'STALE');
    return json({...state(await find(),true),emotion:speech.emotion,fallback});
   }catch(cause){
@@ -140,7 +144,7 @@ export function createWorldEvents({fetcher=(...args)=>fetch(...args),decrypt=ope
    if(stage==='save-record')return failure('EVENT_SAVE_FAILED','Grok 응답 후 대화 기록을 저장하지 못했어요. 다시 보내기 전 발견 기록을 확인해주세요.',503);
    return failure(stage==='connect'?'PROVIDER_NETWORK':'PROVIDER_READ_FAILED',stage==='connect'?'서버에서 Grok으로 연결하지 못했어요.':'Grok 응답을 읽는 중 연결이 끊겼어요.');
   }
-  finally{clearTimeout(timeout);request.signal?.removeEventListener('abort',onAbort);apiKey='';try{await env.DB.prepare('UPDATE world_event_progress SET leaseToken=NULL,leaseUntil=0 WHERE userId=? AND eventId=? AND leaseToken=?').bind(userId,NOX_STONE.id,token).run();}catch{try{logger({event:'nox_lease_release_failed',diagnosticId,model:EVENT_MODEL});}catch{}}}
+  finally{clearTimeout(timeout);request.signal?.removeEventListener('abort',onAbort);apiKey='';try{await env.DB.prepare('UPDATE world_event_progress SET leaseToken=NULL,leaseUntil=0 WHERE userId=? AND eventId=? AND leaseToken=?').bind(userId,eventKey,token).run();}catch{try{logger({event:'nox_lease_release_failed',diagnosticId,model:EVENT_MODEL});}catch{}}}
  };
 }
 export const worldEvents=createWorldEvents();

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {createWorldEvents,validateEventReply,EVENT_MODEL,parseProviderSpeech} from '../src/world-events.js';
+import {STORY_SCHEMA,STORY_INDEX,CHUNK_SCHEMA} from '../src/stories.js';
 import {NOX_STONE,nearNoxStone,blocksNoxStone} from '../public/meadow-event.js';
 function fixture({key=true,fetcher,decrypt}={}){
  const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');
@@ -10,6 +11,8 @@ function fixture({key=true,fetcher,decrypt}={}){
  for(const id of ['g','g2','f'])sql.prepare('INSERT INTO user(id,name,email,emailVerified,createdAt,updatedAt) VALUES (?,?,?,1,0,0)').run(id,'Name '+id,id+'@example.com');
  for(const[id,name,faction]of[['g','녹스여행자','nox'],['g2','다른여행자','nox'],['f','초록여행자','astra']])sql.prepare('INSERT INTO member_profile(userId,name,faction) VALUES (?,?,?)').run(id,name,faction);
  sql.prepare('INSERT INTO world_chunk(faction,x,y,version,data,createdAt) VALUES (?,?,?,?,?,?)').run('nox',0,0,1,'{}',1);
+ sql.exec(STORY_SCHEMA+';'+STORY_INDEX+';'+CHUNK_SCHEMA);
+ for(const uid of ['g','g2']){const sid='story-log-00000-'+uid;sql.prepare('INSERT INTO adventure_story(id,userId,slot,title,characterId,faction,seed,createdAt,updatedAt) VALUES (?,?,1,?, ?, ?, ?,0,0)').run(sid,uid,'Test','rin','nox','test-seed');sql.prepare('INSERT INTO adventure_chunk(storyId,x,y,data,createdAt) VALUES (?,0,0,?,0)').run(sid,'{}');}
  if(key)sql.prepare('INSERT INTO member_api_key(userId,provider,encrypted,suffix,updatedAt) VALUES (?,?,?,?,?)').run('g','xai','test-cipher','1234',1);
  const DB={prepare(query){let values=[];const stmt={bind(...params){values=params;return stmt;},async all(){return{results:sql.prepare(query).all(...values),meta:{changes:sql.prepare('SELECT changes() AS n').get().n}};},async first(){return(await stmt.all()).results[0]||null;},async run(){return stmt.all();}};return stmt;}};
  let now=100000,calls=[],diagnostics=[];
@@ -18,7 +21,7 @@ function fixture({key=true,fetcher,decrypt}={}){
  const handle=createWorldEvents({fetcher:transport,decrypt:decrypt|| (async(secret,userId,provider,cipher)=>{assert.equal(provider,'xai');assert.equal(cipher,'test-cipher');return fakeKey;}),clock:()=>now,uuid:()=>crypto.randomUUID(),logger:entry=>diagnostics.push(entry)});
  const env={DB,BETTER_AUTH_SECRET:'test-secret-with-more-than-32-characters'};
  const auth={api:{getSession:async({headers})=>{const id=headers.get('Cookie');return ['g','g2','f'].includes(id)?{user:{id}}:null;}}};
- const request=(body,userId='g',method=body?'POST':'GET')=>handle(new Request('https://gggc.example/api/world/events/nox-stone',{method,headers:{'Content-Type':'application/json',...(userId?{Cookie:userId}:{})},...(body?{body:JSON.stringify(body)}:{})}),env,auth);
+ const request=(body,userId='g',method=body?'POST':'GET')=>handle(new Request('https://gggc.example/api/world/events/nox-stone?storyId=story-log-00000-'+userId,{method,headers:{'Content-Type':'application/json',...(userId?{Cookie:userId}:{})},...(body?{body:JSON.stringify({storyId:'story-log-00000-'+userId,...body})}:{})}),env,auth);
  return{sql,request,calls,diagnostics,fakeKey,tick:()=>{now+=6000;}};
 }
 function reply(speech){return new Response(JSON.stringify({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(speech)}]}]}),{headers:{'Content-Type':'application/json'}});}
@@ -137,4 +140,16 @@ test('Workers-compatible fetch options reach the provider and save its reply',as
  await f.request(action('open'));
  const response=await f.request(action('chat',{message:'Look at the stone',requestId:'redirect-test-0001'}));
  assert.equal(response.status,200);assert.equal((await response.json()).turns,1);assert.equal(f.calls.length,1);
+});
+
+test('the same account has separate AI histories, question caps and request IDs per story',async()=>{
+ const f=fixture(),second='story-log-second-g';
+ f.sql.prepare('INSERT INTO adventure_story(id,userId,slot,title,characterId,faction,seed,createdAt,updatedAt) VALUES (?,?,2,?,?,?,?,0,0)').run(second,'g','Second','leo','nox','second-seed');
+ f.sql.prepare('INSERT INTO adventure_chunk(storyId,x,y,data,createdAt) VALUES (?,0,0,?,0)').run(second,'{}');
+ await f.request(action('open'));await f.request(action('chat',{message:'only-first-story-message',requestId:'same-id-across-stories'}));f.tick();
+ await f.request(action('open',{storyId:second}));
+ const result=await f.request(action('chat',{storyId:second,message:'only-second-story-message',requestId:'same-id-across-stories'}));assert.equal(result.status,200);
+ const transcript=(await result.json()).messages;assert.equal(transcript.length,2);assert(!JSON.stringify(transcript).includes('only-first-story-message'));
+ const payload=JSON.parse(f.calls[1].options.body);assert(!JSON.stringify(payload).includes('only-first-story-message'));assert(JSON.stringify(payload).includes('레오'));
+ assert.equal((await(await f.request()).json()).turns,1);
 });

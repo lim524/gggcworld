@@ -27,22 +27,3 @@ test('generated maps are deterministic and all entrances connect to the safe spa
  assert.notDeepEqual(generateChunk('nox',0,0),generateChunk('nox',1,0));
  assert.notDeepEqual(generateChunk('nox',0,0),generateChunk('astra',0,0));
 });
-test('maps persist once per faction and location; identity comes from the session',async()=>{
- const {request,sql}=fixture();
- const a=await request({x:0,y:0,faction:'nox',userId:'c'},'a');assert.equal(a.status,200);const first=await a.json();assert.equal(first.chunk.faction,'astra');assert.equal(first.discoveredBy,'여행자A');
- const shared=await (await request({x:0,y:0},'b')).json();assert.deepEqual(shared,first);
- const other=await (await request({x:0,y:0},'c')).json();assert.equal(other.chunk.faction,'nox');assert.notEqual(first.chunk.seed,other.chunk.seed);
- assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM world_chunk').get().n,2);
- const same=await Promise.all([request({x:1,y:0},'a'),request({x:1,y:0},'b')]);assert.deepEqual((await same[0].json()).chunk,(await same[1].json()).chunk);
- assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM world_chunk WHERE faction=? AND x=? AND y=?').get('astra',1,0).n,1);
-});
-test('map discovery validates access and coordinates and limits new map creation',async()=>{
- const {request}=fixture();
- assert.equal((await request({x:0,y:0})).status,401);
- assert.equal((await request({x:0,y:0},'new')).status,403);
- assert.equal((await request({x:0,y:0},'a','https://evil.example')).status,403);
- for(const body of [null,[],{}, {x:'0',y:0},{x:33,y:0},{x:0,y:1.5}])assert.equal((await request(body,'a')).status,400);
- for(let x=0;x<12;x++)assert.equal((await request({x,y:0},'a')).status,200);
- assert.equal((await request({x:12,y:0},'a')).status,429);
- assert.equal((await request({x:0,y:0},'a')).status,200);
-});

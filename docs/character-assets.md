@@ -1,4 +1,4 @@
-# 모험가 자산 제작 기준과 린 v1
+# 모험가 자산 제작 기준 · 린과 레오
 
 ## 적용 범위
 
@@ -13,7 +13,7 @@
 
 첫걸음의 탐험가. 밤색 단발과 작은 땋은 머리, 청록 리본, 아이보리 망토와 남색 튜닉, 나침반 장식과 갈색 가방을 공통 외형으로 사용합니다.
 
-기본 모험가 후보이며 /character-lab에서 자산을 미리 볼 수 있습니다. 이 등록은 계정에 캐릭터를 지급하거나 소유를 확정하지 않습니다. 가챠·재화·보유 목록·출전 캐릭터 연결은 다음 작업입니다. 실제 모험의 캐릭터와 사건 대화 UI는 이번에 바꾸지 않습니다.
+린(여성)과 레오(남성)는 모든 계정이 새 이야기마다 선택할 수 있는 공통 시작 모험가입니다. 로그인 후 /adventure의 최대 5개 개인 로그 중 하나를 만들거나 이어하면 선택한 캐릭터가 실제 맵에 표시됩니다. 가챠·재화는 아직 연결하지 않았으며, 사건 대화 UI는 기존 방식을 유지합니다. /character-lab은 정적 자산 검수용입니다.
 
 ## 파일과 재생
 
@@ -51,3 +51,11 @@ Use case: stylized-concept. Asset type: transparent dialogue portrait for a fant
 Use case: stylized-concept. Asset type: ONE full-body game pixel sprite master drawing, not a sprite sheet. Use the attached image as character identity reference. This is Rin, the same ADULT female beginning traveler: chestnut chin-length bob with a small braid on viewer right and dark teal ribbon, amber eyes, ivory short hooded cape with teal lining, navy high collar tunic, brass compass medallion on brown crossbody strap, brown satchel on viewer left hip, brown gloves, dark trousers and brown boots. Reinterpret her as a polished 16-bit RPG chibi map sprite about 3 heads tall, matching the detailed existing fantasy guardian map sprites. Crisp deliberate pixel clusters, limited coherent color palette, strong 1-2px dark outlines, cel shaded color ramps, readable miniature details, NOT smooth illustration and NOT blurry pixel filter. Standing exactly FRONT facing, face level and symmetric (no tilted face), both boots level on exactly the same baseline, arms down at sides in neutral breathing-ready idle stance, both eyes fully open at the SAME vertical level, eyebrows distinct ABOVE the eyes. A simple small friendly smile. The bag and cape remain clearly visible as recognizable landmarks. Both hands away from eyes. ONE character centered, all feet/hair/ribbon/cloak inside frame, a generous empty transparent margin. No giant cape flaring, no weapon, no halo, no floor, no shadow, no background, no labels, no UI, no text, no little variants. True transparent background. Render pixel art at roughly 128x160 logical pixels then clean nearest-neighbor enlargement so it is suitable for stable game animation.
 ```
 
+
+## 레오 v2
+
+초기 남성 시안의 여성형 허리·골반과 짧은 하의를 수정했습니다. 넓은 어깨, 곧은 남색 여행 재킷, 긴 바지와 부츠로 제작했습니다. 원본 프로필은 1024×1536, 도트는 린과 동일한 192×224×32입니다. 파일은 `public/assets/characters/leo/portrait-v2.webp`, `master-v2.webp`, `idle-v2.png`, `idle-v2.json`입니다.
+
+실제 맵에서는 32px 타일에서 전체 프레임을 48×56 CSS px로, 64px 타일에서는 96×112 CSS px로 그립니다. 투명 여백을 제외한 인물은 대략 타일 폭의 2/3, 높이의 1.5배입니다. 두 캐릭터 모두 발 기준 (96,210)을 바닥에 맞춥니다. 이동은 위치 보간과 작은 보행 흔들림이며, 4방향 걷기 원화는 아직 없습니다.
+
+제작: 내장 image_gen. 최종 프롬프트 요약: masculine young adult male explorer, broad shoulders, straight navy travel jacket, narrow hips, loose long dark trousers, brown boots, small ivory teal-lined shoulder cape, compass and satchel; short brown hair and amber eyes, refined anime style, transparent cutout. 도트 프롬프트: same identity and outfit, front-facing neutral idle, both eyes open, 3.4-head-tall chibi, crisp JRPG pixel clusters, full body with level feet, no shadow or scenery, transparent alpha. 배경 정리: preserve the character exactly and remove all smoky gradient, halo and background pixels.

@@ -9,13 +9,13 @@ export function createStoneEvent({game,ui,canvas,getState,pause,resume,blocked,n
  const log=document.createElement('dialog');log.className='stone-log';log.setAttribute('aria-labelledby','stone-log-title');
  log.innerHTML='<span class="eyebrow">DISCOVERY NOTES</span><h2 id="stone-log-title">나의 발견 기록</h2><div class="stone-log-content"></div><form method="dialog"><button class="pixel-button">닫기</button></form>';game.append(log);
  const message=dialog.querySelector('.stone-message'),input=dialog.querySelector('input'),finish=dialog.querySelector('.stone-finish');
- let data=null,pending=false,refreshing=false,draftRequest=null;
+ let data=null,pending=false,refreshing=false,draftRequest=null,generation=0;
  const canInteract=()=>{const s=getState();return s.active&&!s.motion&&s.chunk?.faction==='nox'&&nearNoxStone(s.cx,s.cy,s.player.x,s.player.y);};
- function position(action){const s=getState();return{action,cx:s.cx,cy:s.cy,x:s.player.x,y:s.player.y};}
+ function position(action){const s=getState();return{action,storyId:s.storyId,cx:s.cx,cy:s.cy,x:s.player.x,y:s.player.y};}
  async function request(method='GET',body,ai=false){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),ai?55000:15000);
   try{
-   const response=await fetch('/api/world/events/nox-stone',{method,credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
+   const response=await fetch('/api/world/events/nox-stone?storyId='+encodeURIComponent(getState().storyId),{method,credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
    let result;try{result=await response.json();}catch{throw Error('응답을 확인하지 못했어요.');}
    if(!response.ok){const error=Error(result.error||'이벤트 요청을 완료하지 못했어요.');error.code=result.code;throw error;}
    return result;
@@ -48,8 +48,8 @@ export function createStoneEvent({game,ui,canvas,getState,pause,resume,blocked,n
  }
  async function refresh(){
   if(getState().chunk?.faction!=='nox'||pending||refreshing)return;
-  refreshing=true;controls();
-  try{data=await request();if(dialog.open){message.textContent=data.aiReady?'키 상태를 확인했어요. 질문을 보낼 수 있습니다.':'프로필에서 Grok API 키를 등록한 뒤 새로고침해주세요.';render();}update();return true;}catch(error){if(dialog.open)message.textContent=error.message;return false;}finally{refreshing=false;controls();}
+  const epoch=generation;refreshing=true;controls();
+  try{const result=await request();if(epoch!==generation)return false;data=result;if(dialog.open){message.textContent=data.aiReady?'키 상태를 확인했어요. 질문을 보낼 수 있습니다.':'프로필에서 Grok API 키를 등록한 뒤 새로고침해주세요.';render();}update();return true;}catch(error){if(dialog.open)message.textContent=error.message;return false;}finally{if(epoch===generation){refreshing=false;controls();}}
  }
  async function open(){
   if(!canInteract()||blocked()||pending||refreshing||dialog.open)return;
@@ -91,5 +91,5 @@ export function createStoneEvent({game,ui,canvas,getState,pause,resume,blocked,n
  log.addEventListener('close',()=>{resume();update();});
  document.addEventListener('keydown',event=>{if(dialog.open||log.open||event.repeat||event.ctrlKey||event.metaKey||event.altKey||['INPUT','TEXTAREA','SELECT','BUTTON','A'].includes(event.target.tagName))return;if((event.key.toLowerCase()==='e'||event.key==='Enter')&&canInteract()&&!blocked()){event.preventDefault();open();}});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&dialog.open&&!pending)refresh();});
- return{update,refresh,get isOpen(){return dialog.open||log.open;},get progress(){return data;}};
+ return{update,refresh,openLog,reset(){generation++;data=null;draftRequest=null;refreshing=false;dialog.close();log.close();update();},get isOpen(){return dialog.open||log.open;},get progress(){return data;}};
 }

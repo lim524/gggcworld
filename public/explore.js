@@ -1,3 +1,4 @@
+import {createStoryLibrary} from './story-library.js';
 import {MAP_WIDTH,MAP_HEIGHT,REGION_LIMIT,REGION_NAMES,walkable} from './worldgen.js';
 import {REGION_THEMES} from './region-theme.js';
 import {blocksNoxStone} from './meadow-event.js';
@@ -29,15 +30,18 @@ function tiles(faction='nox'){
 }
 let art=tiles('nox');const game=document.querySelector('#game'),status=document.querySelector('#game-status'),settings=document.querySelector('#settings-dialog');
 const ui=document.createElement('section');ui.className='explore-screen';ui.hidden=true;ui.setAttribute('aria-label','초원 탐험');
-ui.innerHTML='<canvas id="explore-canvas" tabindex="0" role="img" aria-label="초원 지도. 방향키 또는 WASD로 이동하세요."></canvas><div class="explore-hud"><span class="explore-eyebrow">FACTION MEADOW</span><h2 id="explore-region"></h2><p id="explore-coordinate"></p><small id="explore-discovery"></small></div><button class="explore-return" id="show-explore-help" aria-haspopup="dialog">조작 안내</button><p class="explore-notice" id="explore-notice" role="status"></p><div class="explore-help">PC 방향키 · WASD / 모바일 스와이프 · 방향패드<span>나무·돌은 통과할 수 없어요. 열린 길 끝에서 다음 구역으로 이동해요.</span></div><div class="explore-pad" role="group" aria-label="이동 방향패드"><button data-dir="up" aria-label="위로 이동">▲</button><button data-dir="left" aria-label="왼쪽으로 이동">◀</button><span></span><button data-dir="right" aria-label="오른쪽으로 이동">▶</button><button data-dir="down" aria-label="아래로 이동">▼</button></div><div class="explore-loading" hidden role="status">다음 초원을 불러오고 있어요…</div>';
+ui.innerHTML='<canvas id="explore-canvas" tabindex="0" role="img" aria-label="초원 지도. 방향키 또는 WASD로 이동하세요."></canvas><button class="explore-hud" id="open-atlas" aria-label="탐험 지도 열기"><span class="explore-eyebrow">MY JOURNEY</span><canvas id="minimap" width="128" height="96" aria-hidden="true"></canvas><h2 id="explore-region"></h2><p id="explore-coordinate"></p><small>지도를 눌러 탐험 기록 보기</small></button><button class="bag-button hud-icon" id="open-bag" aria-label="가방" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 6V5a4 4 0 0 1 8 0v1M6 6h12l2 14H4L6 6Z"/><path d="M8 11h8v5H8zM8 6v3m8-3v3"/></svg></button><p class="explore-notice" id="explore-notice" role="status"></p><div class="explore-loading" hidden role="status">다음 초원을 불러오고 있어요…</div>';
+
 game.append(ui);
 const canvas=ui.querySelector('canvas'),ctx=canvas.getContext('2d');
 const launch=document.querySelector('#retry-exploration'),entry=document.querySelector('#explore-entry');
 const directions={up:[0,-1],left:[-1,0],right:[1,0],down:[0,1]};
 const keyDirections={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
-let active=false,busy=false,user=null,chunk=null,cx=0,cy=0,player={x:16,y:12},motion=null,frame=0,lastMove=0,lastSave=0;
-let heldKeys=[],padDirection=null,swipe=null,avatar=null,lastSpriteFrame=-1;
-let viewport={w:1,h:1,dpr:1},raf=0,storageKey='',stoneEvent=null;
+let active=false,busy=false,user=null,chunk=null,cx=0,cy=0,player={x:16,y:12},motion=null,lastMove=0,lastSave=0;
+let heldKeys=[],padDirection=null,swipe=null;
+let viewport={w:1,h:1,dpr:1},raf=0,stoneEvent=null,story=null,visited=[],spriteImage=null,character=null;
+let saveQueue=Promise.resolve(),dirty=false,saveFault=null,tutorialSeen=false,saveTimer=0;
+const bag=document.querySelector('#bag-dialog'),atlas=document.querySelector('#atlas-dialog');
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const touchUI=matchMedia('(hover: none) and (pointer: coarse)');
 const godNames=Object.fromEntries(Object.entries(REGION_THEMES).map(([id,theme])=>[id,theme.name]));
@@ -45,11 +49,10 @@ const aiNames=Object.fromEntries(Object.entries(REGION_THEMES).map(([id,theme])=
 const tutorial=document.createElement('dialog');tutorial.className='explore-tutorial';tutorial.setAttribute('aria-labelledby','tutorial-title');
 tutorial.innerHTML='<div class="tutorial-layout"><div class="tutorial-portrait" aria-hidden="true"></div><div class="tutorial-body"><span class="eyebrow">FIRST ENCOUNTER</span><h2 id="tutorial-title">우리의 첫걸음</h2><h3 id="tutorial-speaker"></h3><p id="tutorial-welcome"></p><div class="tutorial-controls"><strong>이동 방법</strong><p id="tutorial-movement"></p><p>나무와 돌은 지나갈 수 없어. 열린 길 끝으로 가면 다음 초원으로 이어져.</p></div><small class="landscape-tip">휴대폰을 가로로 돌려도 같은 위치에서 계속 탐험할 수 있어.</small></div></div><form method="dialog"><button class="pixel-button">탐험 시작</button></form>';
 game.append(tutorial);
-function modalOpen(){return settings.open||tutorial.open||Boolean(stoneEvent?.isOpen);}
+function modalOpen(){return settings.open||tutorial.open||bag.open||atlas.open||Boolean(stoneEvent?.isOpen);}
 function syncInputHelp(){
- tutorial.querySelector('#tutorial-movement').textContent=touchUI.matches?'화면을 원하는 방향으로 스와이프해 봐. 오른쪽 아래 방향패드를 누르고 있으면 계속 걸을 수 있어.':'방향키 또는 W·A·S·D로 걸어봐. 키를 누르고 있으면 계속 움직일 수 있어.';
- ui.querySelector('.explore-help').firstChild.textContent=touchUI.matches?'스와이프 · 방향패드로 이동':'방향키 · WASD로 이동';
- canvas.setAttribute('aria-label',(chunk?REGION_NAMES[chunk.faction]:'초원')+' 지도. '+(touchUI.matches?'스와이프 또는 방향패드로 이동하세요.':'방향키 또는 WASD로 이동하세요.'));
+ tutorial.querySelector('#tutorial-movement').textContent=touchUI.matches?'화면을 원하는 방향으로 스와이프해 봐. 손가락을 움직일 때마다 그 방향으로 한 걸음씩 이동해.':'방향키 또는 W·A·S·D로 걸어봐. 키를 누르고 있으면 계속 움직일 수 있어.';
+ canvas.setAttribute('aria-label',(chunk?REGION_NAMES[chunk.faction]:'초원')+' 지도. '+(touchUI.matches?'스와이프로 이동하세요.':'방향키 또는 WASD로 이동하세요.'));
  clearHeld();
 }
 function showTutorial(){
@@ -66,7 +69,7 @@ function showTutorial(){
 }
 tutorial.addEventListener('close',()=>{
  clearHeld();
- if(user){try{localStorage.setItem('gggc-explorer-tutorial-v1:'+user.id,'seen');}catch{}}
+ if(story){tutorialSeen=true;save();}
  if(active)canvas.focus();
 });
 touchUI.addEventListener('change',syncInputHelp);
@@ -74,51 +77,75 @@ syncInputHelp();
 
 function notice(text){const node=ui.querySelector('#explore-notice');if(node.textContent!==text)node.textContent=text;}
 function clearHeld(){heldKeys=[];padDirection=null;swipe=null;}
-function save(){if(!user||!chunk)return;try{localStorage.setItem(storageKey,JSON.stringify({cx,cy,x:player.x,y:player.y}));}catch{}}
+function save(){
+ clearTimeout(saveTimer);
+ if(!active||!story||!chunk)return saveQueue;
+ dirty=true;
+ saveQueue=saveQueue.catch(()=>{}).then(async()=>{
+  if(!dirty||!active||!story||saveFault?.code==='STORY_CONFLICT')return;
+  dirty=false;const id=story.id,snapshot={cx,cy,x:player.x,y:player.y,tutorialSeen,revision:story.revision};
+  document.querySelector('#save-status').textContent='저장 중…';
+  try{const result=await api('/api/stories/'+id,'PATCH',snapshot);if(story?.id===id){story.revision=result.story.revision;saveFault=null;document.querySelector('#save-status').textContent='저장 완료';}}
+  catch(e){if(story?.id===id){saveFault=e;dirty=true;notice(e.message);document.querySelector('#save-status').textContent='저장 실패 · '+e.message;}}
+ });
+ return saveQueue;
+}
+
 async function api(path,method='GET',body){
- const response=await fetch(path,{method,credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
+ const response=await fetch(path,{method,credentials:'same-origin',cache:'no-store',keepalive:true,headers:{'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
  let data;try{data=await response.json();}catch{throw Error('서버 응답을 확인하지 못했어요.');}
- if(!response.ok){const error=Error(data.error||'초원을 불러오지 못했어요.');error.status=response.status;throw error;}return data;
+ if(!response.ok){const error=Error(data.error||'초원을 불러오지 못했어요.');error.status=response.status;error.code=data.code;throw error;}return data;
 }
 function showLogin(message){
  entry.querySelector('h1').textContent='초원으로 떠날 준비';launch.hidden=false;
- status.textContent=message+' ';const link=document.createElement('a');link.href='/settings';link.textContent='프로필 설정으로';link.style.textDecoration='underline';status.append(link);
+ status.textContent=message+' ';const link=document.createElement('a');link.href='/';link.textContent='광장에서 로그인하기';link.style.textDecoration='underline';status.append(link);
 }
 function resize(){const rect=canvas.getBoundingClientRect();viewport={w:rect.width,h:rect.height,dpr:Math.min(devicePixelRatio||1,2)};canvas.width=Math.max(1,Math.round(rect.width*viewport.dpr));canvas.height=Math.max(1,Math.round(rect.height*viewport.dpr));}
 new ResizeObserver(()=>{if(active)resize();}).observe(canvas);
 function updateHud(data){
  ui.querySelector('#explore-region').textContent=data.region;
  ui.querySelector('.explore-eyebrow').textContent=REGION_THEMES[chunk.faction].ai.toUpperCase()+' · '+godNames[chunk.faction];
- ui.querySelector('#explore-coordinate').textContent='구역 '+cx+', '+cy+' · '+(cx===0&&cy===0?'시작 초원':'진영 탐험지');
- ui.querySelector('#explore-discovery').textContent='최초 발견 · '+data.discoveredBy;
+ ui.querySelector('#explore-coordinate').textContent='구역 ('+cx+', '+cy+') · 좌표 '+(cx*MAP_WIDTH+player.x)+', '+(cy*MAP_HEIGHT+player.y);
  canvas.setAttribute('aria-label',data.region+' 지도. 구역 '+cx+', '+cy+'. 방향키, WASD 또는 스와이프로 이동하세요.');
 }
 async function loadRegion(x,y){
  if(Math.abs(x)>REGION_LIMIT||Math.abs(y)>REGION_LIMIT)throw Error('지금은 이 지역의 탐험 경계까지 왔어요.');
- return api('/api/world/chunks','POST',{x,y});
+ return api('/api/world/chunks','POST',{storyId:story.id,x,y});
 }
+const library=createStoryLibrary({api,onOpen:openStory});
 async function start(){
- if(active||busy)return;busy=true;launch.disabled=true;status.textContent='내 진영의 초원을 불러오고 있어요.';
- try{
-  const data=await api('/api/me');if(!data.user?.profile){showLogin('로그인하고 진영을 확정하면 초원을 탐험할 수 있어요.');return;}user=data.user;
-  storageKey='gggc-explorer-v1:'+user.id;
-  let saved;try{saved=JSON.parse(localStorage.getItem(storageKey));}catch{}
-  const valid=saved&&[saved.cx,saved.cy,saved.x,saved.y].every(Number.isInteger)&&Math.abs(saved.cx)<=REGION_LIMIT&&Math.abs(saved.cy)<=REGION_LIMIT;
-  cx=valid?saved.cx:0;cy=valid?saved.cy:0;
-  const region=await loadRegion(cx,cy);chunk=region.chunk;art=tiles(chunk.faction);ui.dataset.faction=chunk.faction;
-  const theme=REGION_THEMES[chunk.faction];for(const [key,value]of Object.entries({accent:theme.accent,panel:theme.panel,border:theme.border,text:theme.text,backdrop:theme.backdrop}))game.style.setProperty('--meadow-'+key,value);game.style.setProperty('--accent',theme.accent);
-  player=valid&&walkable(chunk,saved.x,saved.y)?{x:saved.x,y:saved.y}:{x:Math.floor(MAP_WIDTH/2),y:Math.floor(MAP_HEIGHT/2)};
-  if(blocksNoxStone(chunk.faction,cx,cy,player.x,player.y))player={x:17,y:12};
-  avatar?.remove();avatar=document.createElement('faction-sprite');avatar.setAttribute('faction',chunk.faction);avatar.setAttribute('still','');avatar.className='explore-avatar-source';avatar.setAttribute('aria-hidden','true');game.append(avatar);lastSpriteFrame=-1;
-  entry.hidden=true;launch.hidden=true;
-  document.querySelector('#settings-name').textContent=godNames[chunk.faction]+' · '+aiNames[chunk.faction];
-  active=true;motion=null;game.classList.add('exploring');ui.hidden=false;status.textContent='';clearHeld();notice('길을 따라 나의 진영을 둘러보세요.');
-  updateHud(region);resize();canvas.focus();cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);save();stoneEvent?.refresh();
- }catch(error){entry.hidden=false;entry.querySelector('h1').textContent='초원에 들어가지 못했어요';launch.hidden=false;if(error.status===401||error.status===403)showLogin(error.message);else status.textContent=error.message;}finally{
-  busy=false;launch.disabled=false;
-  if(active){let seen=false;try{seen=localStorage.getItem('gggc-explorer-tutorial-v1:'+user.id)==='seen';}catch{}if(!seen)showTutorial();}
- }
+ if(active||busy)return;busy=true;launch.disabled=true;status.textContent='로그인 상태를 확인하고 있어요.';
+ try{const data=await api('/api/me');if(!data.user?.profile){showLogin('로그인하고 진영을 확정하면 나의 이야기를 시작할 수 있어요.');return;}user=data.user;entry.hidden=true;status.textContent='';await library.show();}
+ catch(e){entry.hidden=false;launch.hidden=false;entry.querySelector('h1').textContent='이야기를 불러오지 못했어요';status.textContent=e.message;}
+ finally{busy=false;launch.disabled=false;}
 }
+async function openStory(id){
+ if(active||busy)throw Error('현재 작업이 끝난 후 다시 열어주세요.');busy=true;
+ try{
+  // Revalidate session on every entry; no guest or local-storage actor fallback.
+  const me=await api('/api/me');if(!me.user?.profile)throw Error('다시 로그인해주세요.');user=me.user;
+  const data=await api('/api/stories/'+id);story=data.story;visited=data.visited;tutorialSeen=Boolean(story.tutorialSeen);saveFault=null;dirty=false;
+  character=globalThis.GGGCCharacters.get(story.characterId);if(!character||character.role!=='starter')throw Error('시작 캐릭터를 확인하지 못했어요.');
+  const image=new Image();await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(Error('모험가 도트를 불러오지 못했어요. 다시 입장해주세요.'));image.src=character.animations.idle.src;});spriteImage=image;
+  cx=story.cx;cy=story.cy;const region=await loadRegion(cx,cy);chunk=region.chunk;art=tiles(chunk.faction);ui.dataset.faction=chunk.faction;
+  if(!visited.some(v=>v.x===cx&&v.y===cy))visited.push({x:cx,y:cy});
+  const theme=REGION_THEMES[chunk.faction];for(const [key,value]of Object.entries({accent:theme.accent,panel:theme.panel,border:theme.border,text:theme.text,backdrop:theme.backdrop}))game.style.setProperty('--meadow-'+key,value);game.style.setProperty('--accent',theme.accent);
+  player=walkable(chunk,story.x,story.y)?{x:story.x,y:story.y}:{x:16,y:12};if(blocksNoxStone(chunk.faction,cx,cy,player.x,player.y))player={x:17,y:12};
+  stoneEvent?.reset();entry.hidden=true;launch.hidden=true;document.querySelector('#settings-name').textContent=story.title+' · '+character.name;document.querySelector('#exit-story').disabled=false;document.querySelector('#show-explore-help').disabled=false;
+  active=true;motion=null;game.classList.add('exploring');ui.hidden=false;status.textContent='';clearHeld();notice('');updateHud(region);resize();canvas.focus();cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);await save();stoneEvent?.refresh();
+ }catch(e){active=false;ui.hidden=true;game.classList.remove('exploring');story=null;throw e;}
+ finally{busy=false;if(active&&!tutorialSeen)showTutorial();}
+}
+async function leaveStory(toHome=false){
+ if(busy||stoneEvent?.isOpen)return;clearHeld();if(motion){player={...motion.to};motion=null;}
+ const exit=document.querySelector('#exit-story');exit.disabled=true;
+ try{await save();if(saveFault){if(saveFault.code!=='STORY_CONFLICT')throw saveFault;notice('다른 창의 최신 기록을 사용합니다.');}
+  active=false;cancelAnimationFrame(raf);ui.hidden=true;game.classList.remove('exploring');stoneEvent?.reset();story=null;settings.close();
+  if(toHome){location.href='/';return;}await library.show();
+ }catch(e){document.querySelector('#save-status').textContent='나가지 않았어요. '+e.message;}
+ finally{exit.disabled=false;}
+}
+
 async function step(direction,now){
  if(!active||busy||motion||modalOpen())return;
  const [dx,dy]=directions[direction],x=player.x+dx,y=player.y+dy;lastMove=now;
@@ -129,7 +156,7 @@ async function step(direction,now){
    const data=await loadRegion(nextCX,nextCY);
    const target={x:(x+MAP_WIDTH)%MAP_WIDTH,y:(y+MAP_HEIGHT)%MAP_HEIGHT};
    if(!walkable(data.chunk,target.x,target.y))throw Error('다음 지역의 길이 막혀 있어 이동하지 않았어요.');
-   chunk=data.chunk;cx=nextCX;cy=nextCY;player=target;motion=null;updateHud(data);notice('새 구역에 들어왔어요.');save();
+   chunk=data.chunk;if(!visited.some(v=>v.x===nextCX&&v.y===nextCY))visited.push({x:nextCX,y:nextCY});cx=nextCX;cy=nextCY;player=target;motion=null;updateHud(data);notice('새 구역에 들어왔어요.');save();
   }catch(error){notice(error.message);if(error.status===401||error.status===403)showLogin(error.message);}finally{busy=false;ui.querySelector('.explore-loading').hidden=true;}
   return;
  }
@@ -153,7 +180,7 @@ function draw(time){
   // Small stepped grass overlaps soften the otherwise square dirt borders.
   if(chunk.ground[i]===1){ctx.fillStyle=colors.grass;const edge=(xx,yy)=>xx>=0&&yy>=0&&xx<chunk.width&&yy<chunk.height&&chunk.ground[yy*chunk.width+xx]===0;if(edge(x,y-1))for(let k=0;k<4;k++)ctx.fillRect(px+k*8*scale,py,(k%2?5:3)*scale,2*scale);if(edge(x-1,y))ctx.fillRect(px,py+8*scale,2*scale,8*scale);if(edge(x,y+1))ctx.fillRect(px+8*scale,py+tile-2*scale,7*scale,2*scale);if(edge(x+1,y))ctx.fillRect(px+tile-2*scale,py+18*scale,2*scale,6*scale);}
  }
- const spriteFrame=reduced.matches?0:Math.floor(time/90)%32;if(avatar?.ready&&spriteFrame!==lastSpriteFrame){avatar.setFrame(spriteFrame);lastSpriteFrame=spriteFrame;}
+ const spriteFrame=reduced.matches?0:Math.floor(time/character.animations.idle.frameDuration)%32;
  for(let y=fromY;y<=toY;y++){
   for(let x=fromX;x<=toX;x++){const object=chunk.objects[y*chunk.width+x],px=offsetX+x*tile,py=offsetY+y*tile;if(object===1)ctx.drawImage(art.tree,px,py-16*scale,tile,48*scale);else if(object===2)ctx.drawImage(art.rock,px,py,tile,tile);
    if(blocksNoxStone(chunk.faction,cx,cy,x,y)){
@@ -165,7 +192,7 @@ function draw(time){
   if(y===Math.floor(position.y)){
    const px=offsetX+(position.x+.5)*tile,py=offsetY+(position.y+1)*tile,bob=motion&&!reduced.matches?Math.sin(t*Math.PI)*2*scale:0;
    ctx.fillStyle='#1b392d55';ctx.beginPath();ctx.ellipse(px,py-3*scale,9*scale,3*scale,0,0,Math.PI*2);ctx.fill();
-   if(avatar?.ready&&avatar.canvas)ctx.drawImage(avatar.canvas,Math.round(px-12*scale),Math.round(py-28*scale-bob),24*scale,28*scale);
+   if(spriteImage)ctx.drawImage(spriteImage,spriteFrame%4*192,Math.floor(spriteFrame/4)*224,192,224,Math.round(px-24*scale),Math.round(py-52.5*scale-bob),48*scale,56*scale);
    else{ctx.fillStyle='#f7eac4';ctx.fillRect(px-5*scale,py-18*scale,10*scale,15*scale);}
   }
  }
@@ -173,9 +200,9 @@ function draw(time){
 function loop(now){
  if(!active)return;
  if(!document.hidden){
-  if(motion&&now-motion.started>=motion.duration){player={...motion.to};motion=null;if(now-lastSave>1000){save();lastSave=now;}}
+  if(motion&&now-motion.started>=motion.duration){player={...motion.to};motion=null;if(now-lastSave>1000){save();lastSave=now;}else{clearTimeout(saveTimer);saveTimer=setTimeout(save,400);}}
   if(!modalOpen()){const direction=padDirection||heldKeys[heldKeys.length-1];if(direction&&now-lastMove>165)step(direction,now);}
-  draw(now);stoneEvent?.update();
+  draw(now);drawMinimap();stoneEvent?.update();
  }
  raf=requestAnimationFrame(loop);
 }
@@ -186,26 +213,46 @@ document.addEventListener('keydown',event=>{
  if(!event.repeat)step(direction,performance.now());
 });
 document.addEventListener('keyup',event=>{const key=event.key.length===1?event.key.toLowerCase():event.key,direction=keyDirections[key];if(direction)heldKeys=heldKeys.filter(d=>d!==direction);});
-ui.querySelectorAll('[data-dir]').forEach(button=>{
- button.addEventListener('pointerdown',event=>{event.preventDefault();if(!active)return;button.setPointerCapture(event.pointerId);padDirection=button.dataset.dir;step(padDirection,performance.now());});
- const release=()=>{padDirection=null;};button.addEventListener('pointerup',release);button.addEventListener('pointercancel',release);button.addEventListener('lostpointercapture',release);
- // Keyboard and screen-reader activation can also move one tile.
- button.addEventListener('click',event=>{if(event.detail===0)step(button.dataset.dir,performance.now());});
-});
 canvas.addEventListener('pointerdown',event=>{if(!active||modalOpen())return;canvas.focus();canvas.setPointerCapture(event.pointerId);swipe={x:event.clientX,y:event.clientY};});
 canvas.addEventListener('pointermove',event=>{if(!swipe)return;const dx=event.clientX-swipe.x,dy=event.clientY-swipe.y;if(Math.max(Math.abs(dx),Math.abs(dy))<22)return;const direction=Math.abs(dx)>Math.abs(dy)?dx>0?'right':'left':dy>0?'down':'up';step(direction,performance.now());swipe={x:event.clientX,y:event.clientY};});
 canvas.addEventListener('pointerup',()=>{swipe=null;});canvas.addEventListener('pointercancel',()=>{swipe=null;});
 window.addEventListener('blur',clearHeld);document.addEventListener('visibilitychange',()=>{clearHeld();if(document.hidden)save();});
 window.addEventListener('pagehide',()=>{save();clearHeld();cancelAnimationFrame(raf);});window.addEventListener('pageshow',()=>{if(active){cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);}});
 settings.addEventListener('close',()=>{clearHeld();if(active)canvas.focus();});settings.addEventListener('toggle',clearHeld);
-launch.onclick=start;ui.querySelector('#show-explore-help').onclick=showTutorial;
+launch.onclick=start;document.querySelector('#show-explore-help').onclick=()=>{settings.close();showTutorial();};
 window.addEventListener('orientationchange',()=>{clearHeld();if(active)requestAnimationFrame(resize);});
 stoneEvent=createStoneEvent({game,ui,canvas,
- getState:()=>({active,busy,chunk,cx,cy,player,motion,user}),
- blocked:()=>busy||settings.open||tutorial.open,
+ getState:()=>({active,busy,chunk,cx,cy,player,motion,user,storyId:story?.id}),
+ blocked:()=>busy||settings.open||tutorial.open||bag.open||atlas.open,
  pause:()=>{clearHeld();if(motion){player={...motion.to};motion=null;save();}},
  resume:()=>{clearHeld();if(active)canvas.focus();},
  notice
 });
+const gear=document.querySelector('#game-settings');gear.onclick=()=>{document.querySelector('#exit-story').disabled=!active;document.querySelector('#show-explore-help').disabled=!active;clearHeld();if(motion){player={...motion.to};motion=null;save();}settings.showModal();};
+document.querySelector('#close-game-settings').onclick=()=>settings.close();
+document.querySelector('#exit-story').onclick=()=>leaveStory();
+document.querySelector('#exit-game').onclick=event=>{if(active){event.preventDefault();leaveStory(true);}};
+const full=document.querySelector('#game-fullscreen');
+if(!document.fullscreenEnabled||!game.requestFullscreen){full.disabled=true;full.textContent='이 브라우저는 전체화면 미지원';}
+full.onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await game.requestFullscreen();}catch{document.querySelector('#save-status').textContent='이 브라우저에서 전체화면 전환을 사용할 수 없어요.';}};
+document.addEventListener('fullscreenchange',()=>{const on=Boolean(document.fullscreenElement);full.textContent=on?'전체화면 해제':'전체화면';full.setAttribute('aria-pressed',String(on));});
+ui.querySelector('#open-bag').onclick=()=>{clearHeld();bag.showModal();};
+for(const modal of [bag,atlas])modal.addEventListener('close',()=>{clearHeld();if(active)canvas.focus();});
+const mini=ui.querySelector('#minimap'),mc=mini.getContext('2d');let miniKey='';
+function drawMinimap(){
+ if(!chunk)return;const key=story.id+':'+cx+','+cy+','+player.x+','+player.y;if(key===miniKey)return;miniKey=key;mc.imageSmoothingEnabled=false;
+ for(let y=0;y<MAP_HEIGHT;y++)for(let x=0;x<MAP_WIDTH;x++){const i=y*MAP_WIDTH+x;mc.fillStyle=chunk.objects[i]===1?'#304538':chunk.objects[i]===2?'#777383':chunk.ground[i]===1?colors.dirt:colors.grass;mc.fillRect(x*4,y*4,4,4);}
+ mc.fillStyle='#ffffff';mc.fillRect(player.x*4,player.y*4,4,4);mc.strokeStyle='#fff';mc.strokeRect(player.x*4-2,player.y*4-2,8,8);
+ ui.querySelector('#explore-coordinate').textContent='구역 ('+cx+', '+cy+') · 좌표 '+(cx*MAP_WIDTH+player.x)+', '+(cy*MAP_HEIGHT+player.y);
+}
+ui.querySelector('#open-atlas').onclick=()=>{
+ clearHeld();const map=document.querySelector('#atlas-canvas'),c=map.getContext('2d');c.fillStyle='#17252c';c.fillRect(0,0,map.width,map.height);
+ const xs=visited.map(v=>v.x),ys=visited.map(v=>v.y),minX=Math.min(...xs)-1,maxX=Math.max(...xs)+1,minY=Math.min(...ys)-1,maxY=Math.max(...ys)+1;
+ const size=Math.min(50,480/(maxX-minX+1),300/(maxY-minY+1)),ox=(map.width-(maxX-minX+1)*size)/2,oy=(map.height-(maxY-minY+1)*size)/2;
+ for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++){const px=ox+(x-minX)*size,py=oy+(y-minY)*size,seen=visited.some(v=>v.x===x&&v.y===y);c.fillStyle=seen?colors.grass:'#26343d';c.fillRect(px+1,py+1,size-2,size-2);if(seen&&size>22){c.fillStyle='#fff';c.font='10px sans-serif';c.fillText(x+','+y,px+4,py+size-5);}if(x===cx&&y===cy){c.fillStyle='#fff1ac';c.beginPath();c.arc(px+size*(player.x+.5)/MAP_WIDTH,py+size*(player.y+.5)/MAP_HEIGHT,Math.max(2,size/12),0,Math.PI*2);c.fill();}}
+ document.querySelector('#atlas-coordinate').textContent=story.title+' · 방문한 구역 '+visited.length+'개 · 현재 ('+cx+', '+cy+')';atlas.showModal();
+};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&active&&!document.querySelector('dialog[open]'))gear.click();});
+window.addEventListener('online',()=>{if(active)save();});
 window.GGGCExplore={start,get active(){return active;}};
 start();

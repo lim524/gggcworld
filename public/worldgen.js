@@ -3,14 +3,14 @@ export const WORLD_VERSION=1;
 export const MAP_WIDTH=32,MAP_HEIGHT=24;
 export const REGION_LIMIT=32;
 export const REGION_NAMES={astra:'초록 초원',serin:'햇살 초원',lumi:'별빛 초원',nox:'황혼 초원'};
-export function seedFor(faction,x,y){
- const text='gggc-meadow-v1:'+faction+':'+x+':'+y;let hash=2166136261;
+export function seedFor(faction,x,y,worldSeed=''){
+ const text='gggc-meadow-v1:'+faction+':'+x+':'+y+(worldSeed?':'+worldSeed:'');let hash=2166136261;
  for(let i=0;i<text.length;i++){hash^=text.charCodeAt(i);hash=Math.imul(hash,16777619);}
  return hash>>>0;
 }
 function random(seed){return()=>{seed+=0x6D2B79F5;let n=seed;n=Math.imul(n^(n>>>15),n|1);n^=n+Math.imul(n^(n>>>7),n|61);return((n^(n>>>14))>>>0)/4294967296;};}
-export function generateChunk(faction,x,y){
- const seed=seedFor(faction,x,y),rng=random(seed),width=MAP_WIDTH,height=MAP_HEIGHT;
+export function generateChunk(faction,x,y,worldSeed=''){
+ const seed=seedFor(faction,x,y,worldSeed),rng=random(seed),width=MAP_WIDTH,height=MAP_HEIGHT;
  const ground=Array(width*height).fill(0),objects=Array(width*height).fill(0),road=new Set();
  const cx=Math.floor(width/2),cy=Math.floor(height/2);
  const carve=(x,y)=>{if(x<0||y<0||x>=width||y>=height)return;const i=y*width+x;ground[i]=1;objects[i]=0;road.add(i);};
