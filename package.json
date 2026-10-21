@@ -5,17 +5,19 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "check": "node --check public/community-app.js && node --check public/content.js && node --check public/auth.js && node --check src/worker.js && node --check src/community.js && node --check public/world.js && node --check public/divine-motion.js && node --check public/world-effects.js && node --check public/adventure.js && node --check public/companion.js && node --check public/settings.js && node --check src/byok.js && node --check src/world.js && node --check public/worldgen.js && node --check public/explore.js && node --check public/region-theme.js && node --check src/world-events.js && node --check public/meadow-event.js && node --check public/stone-event-ui.js && node --check public/guardians.js && node --check public/guardian-page.js",
+    "check": "node --check public/community-app.js && node --check public/content.js && node --check public/auth.js && node --check src/worker.js && node --check src/community.js && node --check public/world.js && node --check public/divine-motion.js && node --check public/world-effects.js && node --check public/adventure.js && node --check public/companion.js && node --check public/settings.js && node --check src/byok.js && node --check src/world.js && node --check public/worldgen.js && node --check public/explore.js && node --check public/region-theme.js && node --check src/world-events.js && node --check public/meadow-event.js && node --check public/stone-event-ui.js && node --check public/guardians.js && node --check public/guardian-page.js && node --check public/characters.js && node --check public/adventurer-motion.js && node --check public/character-lab.js && node --check scripts/build-adventurer-sheets.mjs",
     "test": "node --test tests/*.test.js",
     "build": "npm run check && npm test",
     "deploy": "wrangler deploy",
     "db:local": "wrangler d1 migrations apply gggcworld --local",
-    "db:remote": "wrangler d1 migrations apply gggcworld --remote"
+    "db:remote": "wrangler d1 migrations apply gggcworld --remote",
+    "sprites:build": "node scripts/build-adventurer-sheets.mjs"
   },
   "dependencies": {
     "better-auth": "1.7.12"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^1.0.12",
     "wrangler": "^4.0.0"
   }
 }
