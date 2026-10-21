@@ -20,6 +20,13 @@
   rigSource:'assets/characters/leo/master-v2.webp'
  }];
  function freeze(value){if(value&&typeof value==='object'){Object.values(value).forEach(freeze);Object.freeze(value);}return value;}
+ for(const character of all){
+  character.animations.walk=Object.fromEntries(['down','up','left','right'].map(direction=>[direction,{
+   src:'assets/characters/'+character.id+'/walk-'+direction+'-v1.png',
+   manifest:'assets/characters/'+character.id+'/walk-'+direction+'-v1.json',
+   frameCount:32,columns:4,rows:8,tileWidth:192,tileHeight:224,anchor:{x:96,y:210},frameDuration:25
+  }]));
+ }
  const standard=freeze({idleFrames:32,tileWidth:192,tileHeight:224,columns:4,rows:8,anchor:{x:96,y:210},portraitTransparent:true});
  for(const character of all){const idle=character.animations?.idle;
   if(!idle||idle.frameCount!==32||idle.columns!==4||idle.rows!==8||idle.tileWidth!==192||idle.tileHeight!==224||idle.anchor?.x!==96||idle.anchor?.y!==210||!character.portrait?.transparent)throw Error('Character asset standard mismatch: '+character.id);

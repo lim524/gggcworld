@@ -7,7 +7,7 @@
 1. 맵용 도트: 기본 대기 32프레임, 192×224 타일, 4열×8행, 발 기준 (96, 210).
 2. 대화용 프로필: 수호신 일러스트와 어울리는 그림체, 투명 배경 상반신, 캐릭터의 머리·의상·소품 일치.
 
-걷기·공격·방향별 동작은 아직 제작하지 않았습니다. 이번 32프레임은 대기 동작입니다.
+대기 32프레임에 더해 위·아래·좌·우 걷기를 각각 32프레임씩 제공합니다. 공격 모션은 아직 없습니다.
 
 ## 첫 캐릭터: 린
 
@@ -59,3 +59,12 @@ Use case: stylized-concept. Asset type: ONE full-body game pixel sprite master d
 실제 맵에서는 32px 타일에서 전체 프레임을 48×56 CSS px로, 64px 타일에서는 96×112 CSS px로 그립니다. 투명 여백을 제외한 인물은 대략 타일 폭의 2/3, 높이의 1.5배입니다. 두 캐릭터 모두 발 기준 (96,210)을 바닥에 맞춥니다. 이동은 위치 보간과 작은 보행 흔들림이며, 4방향 걷기 원화는 아직 없습니다.
 
 제작: 내장 image_gen. 최종 프롬프트 요약: masculine young adult male explorer, broad shoulders, straight navy travel jacket, narrow hips, loose long dark trousers, brown boots, small ivory teal-lined shoulder cape, compass and satchel; short brown hair and amber eyes, refined anime style, transparent cutout. 도트 프롬프트: same identity and outfit, front-facing neutral idle, both eyes open, 3.4-head-tall chibi, crisp JRPG pixel clusters, full body with level feet, no shadow or scenery, transparent alpha. 배경 정리: preserve the character exactly and remove all smoky gradient, halo and background pixels.
+
+
+## 4방향 걷기 v1 · 크기 조정
+
+남녀 모두 맵 표시를 기존 48×56에서 33×38.5 논리 픽셀로 약 31% 축소했습니다. 발 기준 (96,210)을 유지하며 64px 타일에서는 2배로 표시합니다.
+
+각 캐릭터의 `walk-{down,up,left,right}-v1.png`는 방향당 32장(4열×8행)입니다. 25ms/프레임, 한 주기 800ms로 이동 중에만 재생하고 정지하면 마지막 방향을 유지합니다. 기존 정면 대기 32프레임과 투명 대화 프로필도 유지합니다. 제작실에서 동작을 선택해 검수할 수 있습니다.
+
+제작 방식: 내장 image_gen으로 기존 린·레오 원화를 참조한 4열×2행 방향 원화를 생성했습니다. 프롬프트: preserve both reference identities and pixel style; top row female Rin, bottom row male Leo; columns front/down, back/up with no face, left profile, right profile; identical full-body scale, level feet, transparent background, no ground/shadow/text. `prepare-adventurer-directions.mjs <generated-sheet.png>`로 각 방향을 발 기준에 정렬하고 `npm run sprites:walk`로 반대 위상의 다리 움직임, 발 들기, 상체와 망토 흔들림을 32단계로 생성합니다. 32장의 별도 AI 재생성이 아닌 방향 원화 기반 코드 리깅입니다.

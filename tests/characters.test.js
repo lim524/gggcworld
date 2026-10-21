@@ -43,3 +43,25 @@ test('blink affects both eyes together while keeping the source eyebrows',async(
  }
  }
 });
+test('both explorers have four distinct views and 32 moving-leg frames per direction',async()=>{
+ for(const character of globalThis.GGGCCharacters.all){
+  const views=new Set();
+  for(const direction of ['down','up','left','right']){
+   const animation=character.animations.walk[direction];
+   const manifest=JSON.parse(await readFile(new URL(animation.manifest,root),'utf8'));
+   assert.equal(manifest.direction,direction);assert.equal(manifest.frames.length,32);
+   const image=await loadImage(fileURLToPath(new URL(animation.src,root))),canvas=createCanvas(768,1792),c=canvas.getContext('2d');c.drawImage(image,0,0);
+   assert.equal(image.width,768);assert.equal(image.height,1792);
+   const frames=new Set(),feet=new Set();
+   for(const frame of manifest.frames){
+    const pixels=c.getImageData(frame.x,frame.y,192,224).data;
+    assert.equal(pixels[3],0,'tile corner remains transparent');
+    assert(pixels.some((v,i)=>i%4===3&&v>128));frames.add(hash(pixels));
+    feet.add(hash(c.getImageData(frame.x,frame.y+170,192,54).data));
+   }
+   assert.equal(frames.size,32);assert(feet.size>8,'walking actually moves lower legs');
+   views.add(hash(c.getImageData(0,0,192,224).data));
+  }
+  assert.equal(views.size,4,'each direction has its own artwork');
+ }
+});

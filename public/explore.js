@@ -39,7 +39,7 @@ const directions={up:[0,-1],left:[-1,0],right:[1,0],down:[0,1]};
 const keyDirections={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
 let active=false,busy=false,user=null,chunk=null,cx=0,cy=0,player={x:16,y:12},motion=null,lastMove=0,lastSave=0;
 let heldKeys=[],padDirection=null,swipe=null;
-let viewport={w:1,h:1,dpr:1},raf=0,stoneEvent=null,story=null,visited=[],spriteImage=null,character=null;
+let viewport={w:1,h:1,dpr:1},raf=0,stoneEvent=null,story=null,visited=[],spriteImage=null,walkImages={},facing='down',walkElapsed=0,previousTime=0,character=null;
 let saveQueue=Promise.resolve(),dirty=false,saveFault=null,tutorialSeen=false,saveTimer=0;
 const bag=document.querySelector('#bag-dialog'),atlas=document.querySelector('#atlas-dialog');
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
@@ -127,6 +127,9 @@ async function openStory(id){
   const data=await api('/api/stories/'+id);story=data.story;visited=data.visited;tutorialSeen=Boolean(story.tutorialSeen);saveFault=null;dirty=false;
   character=globalThis.GGGCCharacters.get(story.characterId);if(!character||character.role!=='starter')throw Error('시작 캐릭터를 확인하지 못했어요.');
   const image=new Image();await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(Error('모험가 도트를 불러오지 못했어요. 다시 입장해주세요.'));image.src=character.animations.idle.src;});spriteImage=image;
+  walkImages=Object.fromEntries(await Promise.all(Object.entries(character.animations.walk).map(async([direction,animation])=>{
+   const sheet=new Image();await new Promise((resolve,reject)=>{sheet.onload=resolve;sheet.onerror=()=>reject(Error('방향별 걷기 모션을 불러오지 못했어요.'));sheet.src=animation.src;});return[direction,sheet];
+  })));facing='down';walkElapsed=0;previousTime=0;
   cx=story.cx;cy=story.cy;const region=await loadRegion(cx,cy);chunk=region.chunk;art=tiles(chunk.faction);ui.dataset.faction=chunk.faction;
   if(!visited.some(v=>v.x===cx&&v.y===cy))visited.push({x:cx,y:cy});
   const theme=REGION_THEMES[chunk.faction];for(const [key,value]of Object.entries({accent:theme.accent,panel:theme.panel,border:theme.border,text:theme.text,backdrop:theme.backdrop}))game.style.setProperty('--meadow-'+key,value);game.style.setProperty('--accent',theme.accent);
@@ -148,6 +151,7 @@ async function leaveStory(toHome=false){
 
 async function step(direction,now){
  if(!active||busy||motion||modalOpen())return;
+ facing=direction;
  const [dx,dy]=directions[direction],x=player.x+dx,y=player.y+dy;lastMove=now;
  if(x<0||y<0||x>=MAP_WIDTH||y>=MAP_HEIGHT){
   busy=true;clearHeld();ui.querySelector('.explore-loading').hidden=false;
@@ -180,7 +184,9 @@ function draw(time){
   // Small stepped grass overlaps soften the otherwise square dirt borders.
   if(chunk.ground[i]===1){ctx.fillStyle=colors.grass;const edge=(xx,yy)=>xx>=0&&yy>=0&&xx<chunk.width&&yy<chunk.height&&chunk.ground[yy*chunk.width+xx]===0;if(edge(x,y-1))for(let k=0;k<4;k++)ctx.fillRect(px+k*8*scale,py,(k%2?5:3)*scale,2*scale);if(edge(x-1,y))ctx.fillRect(px,py+8*scale,2*scale,8*scale);if(edge(x,y+1))ctx.fillRect(px+8*scale,py+tile-2*scale,7*scale,2*scale);if(edge(x+1,y))ctx.fillRect(px+tile-2*scale,py+18*scale,2*scale,6*scale);}
  }
- const spriteFrame=reduced.matches?0:Math.floor(time/character.animations.idle.frameDuration)%32;
+ const walking=Boolean(motion)&&!modalOpen();
+ const spriteFrame=reduced.matches?0:walking?Math.floor(walkElapsed/25)%32:facing==='down'?Math.floor(time/character.animations.idle.frameDuration)%32:0;
+ const currentSprite=walking||facing!=='down'?walkImages[facing]:spriteImage;
  for(let y=fromY;y<=toY;y++){
   for(let x=fromX;x<=toX;x++){const object=chunk.objects[y*chunk.width+x],px=offsetX+x*tile,py=offsetY+y*tile;if(object===1)ctx.drawImage(art.tree,px,py-16*scale,tile,48*scale);else if(object===2)ctx.drawImage(art.rock,px,py,tile,tile);
    if(blocksNoxStone(chunk.faction,cx,cy,x,y)){
@@ -190,9 +196,9 @@ function draw(time){
    }
 }
   if(y===Math.floor(position.y)){
-   const px=offsetX+(position.x+.5)*tile,py=offsetY+(position.y+1)*tile,bob=motion&&!reduced.matches?Math.sin(t*Math.PI)*2*scale:0;
-   ctx.fillStyle='#1b392d55';ctx.beginPath();ctx.ellipse(px,py-3*scale,9*scale,3*scale,0,0,Math.PI*2);ctx.fill();
-   if(spriteImage)ctx.drawImage(spriteImage,spriteFrame%4*192,Math.floor(spriteFrame/4)*224,192,224,Math.round(px-24*scale),Math.round(py-52.5*scale-bob),48*scale,56*scale);
+   const px=offsetX+(position.x+.5)*tile,py=offsetY+(position.y+1)*tile,bob=0;
+   ctx.fillStyle='#1b392d55';ctx.beginPath();ctx.ellipse(px,py-3*scale,6*scale,2*scale,0,0,Math.PI*2);ctx.fill();
+   if(currentSprite)ctx.drawImage(currentSprite,spriteFrame%4*192,Math.floor(spriteFrame/4)*224,192,224,Math.round(px-16.5*scale),Math.round(py-36.09375*scale-bob),33*scale,38.5*scale);
    else{ctx.fillStyle='#f7eac4';ctx.fillRect(px-5*scale,py-18*scale,10*scale,15*scale);}
   }
  }
@@ -200,6 +206,8 @@ function draw(time){
 function loop(now){
  if(!active)return;
  if(!document.hidden){
+  if(motion&&!modalOpen()&&!reduced.matches)walkElapsed+=previousTime?Math.min(now-previousTime,50):0;
+  previousTime=now;
   if(motion&&now-motion.started>=motion.duration){player={...motion.to};motion=null;if(now-lastSave>1000){save();lastSave=now;}else{clearTimeout(saveTimer);saveTimer=setTimeout(save,400);}}
   if(!modalOpen()){const direction=padDirection||heldKeys[heldKeys.length-1];if(direction&&now-lastMove>165)step(direction,now);}
   draw(now);drawMinimap();stoneEvent?.update();

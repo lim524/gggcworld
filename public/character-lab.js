@@ -2,7 +2,8 @@
 (() => {
  'use strict';
  const character=globalThis.GGGCCharacters.get(new URL(location.href).searchParams.get('character'))||globalThis.GGGCCharacters.all[0];
- const idle=character.animations.idle,canvas=document.getElementById('character-sprite');
+ let idle=character.animations.idle;
+ const canvas=document.getElementById('character-sprite');
  const play=document.getElementById('character-play'),speedInput=document.getElementById('character-speed'),status=document.getElementById('frame-status'),error=document.getElementById('character-error');
  const reduced=matchMedia('(prefers-reduced-motion: reduce)'),image=new Image();
  let ready=false,playing=!reduced.matches,frame=0,speed=1,raf=0,last=0,elapsed=0,offscreen=false;
@@ -36,6 +37,10 @@
   if(playing&&ready&&!document.hidden&&!offscreen)raf=requestAnimationFrame(loop);
  }
  if(idle.frameCount!==32||idle.columns*idle.rows!==32){fail('이 캐릭터의 32프레임 설정을 확인해주세요.');return;}
+ const picker=document.createElement('select');picker.setAttribute('aria-label','미리볼 캐릭터 동작');
+ for(const [value,text]of [['idle','정면 대기'],['down','아래로 걷기'],['up','위로 걷기'],['left','왼쪽으로 걷기'],['right','오른쪽으로 걷기']]){const option=document.createElement('option');option.value=value;option.textContent=text;picker.append(option);}
+ document.querySelector('.character-playback').prepend(picker);
+ picker.onchange=()=>{idle=picker.value==='idle'?character.animations.idle:character.animations.walk[picker.value];ready=false;frame=0;sync();buttons.forEach(b=>b.disabled=true);image.src=idle.src;document.getElementById('download-sheet').href=idle.src;canvas.setAttribute('aria-label',character.name+' '+picker.selectedOptions[0].textContent+' 32프레임');};
  const group=document.getElementById('character-frame-buttons'),gallery=document.getElementById('character-frame-gallery');
  for(let i=0;i<32;i++){
   const button=document.createElement('button');button.type='button';button.textContent=String(i+1).padStart(2,'0');button.setAttribute('aria-label',(i+1)+'번 프레임');button.setAttribute('aria-pressed','false');button.disabled=true;
